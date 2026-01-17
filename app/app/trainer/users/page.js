@@ -45,19 +45,32 @@ export default function TrainerClientsPage() {
             ) : (
                 <div style={{ display: 'grid', gap: '1rem' }}>
                     {clients.map(client => (
-                        <div key={client.user_id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Link href={`/app/trainer/users/${client.user_id}`} style={{ flex: 1, textDecoration: 'none' }}>
+                        <div key={client.user_id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Top Row: Client Info */}
+                            <Link href={`/app/trainer/users/${client.user_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{
+                                    width: '48px', height: '48px', borderRadius: '50%',
+                                    background: 'var(--primary-gradient)',
+                                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontWeight: 'bold', fontSize: '1.2rem'
+                                }}>
+                                    {client.full_name?.charAt(0).toUpperCase()}
+                                </div>
                                 <div>
-                                    <p style={{ fontWeight: 'bold' }}>{client.full_name}</p>
+                                    <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{client.full_name}</p>
                                     <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Age: {client.age || '-'} | Weight: {client.weight_kg || '-'}kg</p>
                                 </div>
                             </Link>
-                            <Link href={`/app/workouts/log?userId=${client.user_id}`} className="btn" style={{ marginLeft: '1rem' }}>
-                                Log Workout
-                            </Link>
-                            <Link href={`/app/trainer/users/${client.user_id}/schedule`} className="btn" style={{ marginLeft: '0.5rem', backgroundColor: 'var(--secondary)' }}>
-                                Schedule
-                            </Link>
+
+                            {/* Bottom Row: Actions */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <Link href={`/app/workouts/log?userId=${client.user_id}`} className="btn" style={{ width: '100%' }}>
+                                    Log Workout
+                                </Link>
+                                <Link href={`/app/trainer/users/${client.user_id}/schedule`} className="btn" style={{ width: '100%', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
+                                    Schedule
+                                </Link>
+                            </div>
                         </div>
                     ))}
                 </div>

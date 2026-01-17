@@ -152,7 +152,7 @@ export default function Profile() {
                                         setSelectedGymName('')
                                     }}
                                     style={{
-                                        background: 'var(--accent)',
+                                        background: 'var(--danger)',
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '0.375rem',

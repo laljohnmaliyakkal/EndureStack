@@ -133,18 +133,18 @@ export default function Dashboard() {
                     <div>
                         <p style={{ marginBottom: '1rem' }}>Manage your gyms and crew here.</p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                            <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+                            <div className="card" style={{ padding: '1.5rem' }}>
                                 <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Gyms</h3>
                                 <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.gyms}</p>
                             </div>
                             <Link href="/app/admin/users?role=trainer" style={{ textDecoration: 'none' }}>
-                                <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border)', cursor: 'pointer', height: '100%' }}>
+                                <div className="card" style={{ padding: '1.5rem', cursor: 'pointer', height: '100%' }}>
                                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Trainers</h3>
                                     <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{stats.trainers}</p>
                                 </div>
                             </Link>
                             <Link href="/app/admin/users?role=user" style={{ textDecoration: 'none' }}>
-                                <div style={{ background: '#0f172a', padding: '1rem', borderRadius: '0.5rem', border: '1px solid var(--border)', cursor: 'pointer', height: '100%' }}>
+                                <div className="card" style={{ padding: '1.5rem', cursor: 'pointer', height: '100%' }}>
                                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Clients</h3>
                                     <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{stats.clients}</p>
                                 </div>
@@ -164,8 +164,7 @@ export default function Dashboard() {
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                background: '#0f172a'
+                                justifyContent: 'space-between'
                             }}>
                                 <div>
                                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>My Clients</h3>
@@ -191,8 +190,7 @@ export default function Dashboard() {
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                background: '#0f172a'
+                                justifyContent: 'space-between'
                             }}>
                                 <div>
                                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Days Trained</h3>
@@ -213,8 +211,7 @@ export default function Dashboard() {
                                 height: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                background: '#0f172a'
+                                justifyContent: 'space-between'
                             }}>
                                 <div>
                                     <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Scheduled</h3>
@@ -236,8 +233,7 @@ export default function Dashboard() {
                                     height: '100%',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                    background: '#0f172a'
+                                    justifyContent: 'space-between'
                                 }}>
                                     <div>
                                         <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>My Trainer</h3>
@@ -254,7 +250,6 @@ export default function Dashboard() {
                                 display: 'flex',
                                 flexDirection: 'column',
                                 justifyContent: 'space-between',
-                                background: '#0f172a',
                                 opacity: 0.8
                             }}>
                                 <div>

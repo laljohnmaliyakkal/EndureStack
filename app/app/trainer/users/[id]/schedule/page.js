@@ -73,7 +73,7 @@ export default function SchedulePage({ params }) {
                     {schedule.map(day => (
                         <div key={day.date} style={{
                             padding: '1rem',
-                            backgroundColor: '#0f172a',
+                            backgroundColor: 'var(--secondary-bg)',
                             border: `1px solid ${day.isToday ? 'var(--primary)' : 'var(--border)'}`,
                             borderRadius: '0.5rem',
                             display: 'flex',
@@ -90,7 +90,7 @@ export default function SchedulePage({ params }) {
                                     display: 'block',
                                     textAlign: 'center',
                                     padding: '0.5rem',
-                                    backgroundColor: '#0f766e',
+                                    background: 'var(--primary)',
                                     color: 'white',
                                     borderRadius: '0.25rem',
                                     marginTop: 'auto',
@@ -115,7 +115,7 @@ export default function SchedulePage({ params }) {
                         </div>
                     ))}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

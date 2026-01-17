@@ -234,7 +234,7 @@ export default function UsersPage() {
                                         {/* Role Management */}
                                         {u.role === 'user' && (
                                             <>
-                                                <button onClick={() => handlePromote(u.user_id, 'trainer')} className="btn" style={{ fontSize: '0.8rem', backgroundColor: '#059669', padding: '0.3rem 0.6rem' }}>
+                                                <button onClick={() => handlePromote(u.user_id, 'trainer')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--success)', padding: '0.3rem 0.6rem' }}>
                                                     Promote
                                                 </button>
 
@@ -242,7 +242,7 @@ export default function UsersPage() {
                                                     <button
                                                         onClick={() => openAssignModal(u, assignedTrainerId)}
                                                         className="btn"
-                                                        style={{ fontSize: '0.8rem', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)', padding: '0.3rem 0.6rem' }}
+                                                        style={{ fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--foreground)', padding: '0.3rem 0.6rem' }}
                                                     >
                                                         Transfer
                                                     </button>
@@ -250,7 +250,7 @@ export default function UsersPage() {
                                                     <button
                                                         onClick={() => openAssignModal(u, null)}
                                                         className="btn"
-                                                        style={{ fontSize: '0.8rem', backgroundColor: 'var(--primary)', padding: '0.3rem 0.6rem' }}
+                                                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
                                                     >
                                                         Assign Trainer
                                                     </button>
@@ -258,7 +258,7 @@ export default function UsersPage() {
                                             </>
                                         )}
                                         {u.role === 'trainer' && (
-                                            <button onClick={() => handlePromote(u.user_id, 'user')} className="btn" style={{ fontSize: '0.8rem', backgroundColor: '#dc2626', padding: '0.3rem 0.6rem' }}>
+                                            <button onClick={() => handlePromote(u.user_id, 'user')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--danger)', padding: '0.3rem 0.6rem' }}>
                                                 Demote
                                             </button>
                                         )}
@@ -283,6 +283,7 @@ export default function UsersPage() {
                     position: 'fixed',
                     top: 0, left: 0, right: 0, bottom: 0,
                     backgroundColor: 'rgba(0,0,0,0.7)',
+                    backdropFilter: 'blur(4px)',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',

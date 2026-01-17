@@ -25,8 +25,8 @@ function Logger() {
     const [selectedMuscle, setSelectedMuscle] = useState('')
     const [selectedExercise, setSelectedExercise] = useState('')
 
-    const [reps, setReps] = useState('')
-    const [weight, setWeight] = useState('')
+    const [reps, setReps] = useState(0)
+    const [weight, setWeight] = useState(0)
     const [setNumber, setSetNumber] = useState(1)
 
     // Fetch Workouts Catalog
@@ -181,7 +181,7 @@ function Logger() {
 
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Reps</label>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Reps/Min</label>
                             <input
                                 type="number"
                                 className="input"

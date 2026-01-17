@@ -169,8 +169,8 @@ export default function GymsPage() {
                                     />
                                 </div>
                                 <div style={{ display: 'flex', gap: '1rem' }}>
-                                    <button type="submit" className="btn" style={{ backgroundColor: '#15803d' }}>Save</button>
-                                    <button type="button" className="btn" style={{ backgroundColor: 'var(--secondary)' }} onClick={() => setEditingGym(null)}>Cancel</button>
+                                    <button type="submit" className="btn" style={{ background: 'var(--success)' }}>Save</button>
+                                    <button type="button" className="btn" style={{ background: 'var(--secondary)' }} onClick={() => setEditingGym(null)}>Cancel</button>
                                 </div>
                             </form>
                         ) : (
@@ -183,7 +183,7 @@ export default function GymsPage() {
                                     </p>
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button onClick={() => setEditingGym(gym)} className="btn" style={{ backgroundColor: 'var(--primary)', padding: '0.5rem' }}>
+                                    <button onClick={() => setEditingGym(gym)} className="btn" style={{ padding: '0.5rem' }}>
                                         Edit
                                     </button>
                                     {/* 

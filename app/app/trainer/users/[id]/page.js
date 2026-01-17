@@ -148,10 +148,6 @@ export default function ClientProfilePage({ params }) {
                     >
                         Transfer Client
                     </button>
-
-                    <Link href={`/app/workouts/log?userId=${client.user_id}`} className="btn">
-                        Log Workout for {client.full_name?.split(' ')[0]}
-                    </Link>
                 </div>
             </div>
 
