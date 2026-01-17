@@ -68,7 +68,7 @@ export default function WorkoutDetailsPage({ params }) {
                                     <tr style={{ textAlign: 'left', color: 'var(--secondary)' }}>
                                         <th style={{ padding: '0.25rem 0.5rem' }}>Set</th>
                                         <th style={{ padding: '0.25rem 0.5rem' }}>Weight (kg)</th>
-                                        <th style={{ padding: '0.25rem 0.5rem' }}>Reps</th>
+                                        <th style={{ padding: '0.25rem 0.5rem' }}>Reps/Min</th>
                                     </tr>
                                 </thead>
                                 <tbody>
