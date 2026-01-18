@@ -327,3 +327,43 @@ label {
     font-size: 0.9rem;
   }
 }
+
+/* Log Workout Page */
+.log-workout-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+  /* Inherits general container padding if wrapped, but ensuring reset if needed */
+}
+
+.log-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.log-input-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.log-input-group>div {
+  flex: 1;
+}
+
+.log-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Smooth scrolling on iOS */
+}
+
+@media (max-width: 640px) {
+  .log-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .log-input-group {
+    /* flex-direction: column;  Kept row for now as reps/weight are small inputs */
+  }
+}
