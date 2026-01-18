@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
 export default function Navbar() {
-    const { user, profile, signOut } = useAuth()
+    const { user, profile, hasTrainer, signOut } = useAuth()
     const pathname = usePathname()
     const [isMenuOpen, setIsMenuOpen] = useState(false)
 
@@ -58,6 +58,9 @@ export default function Navbar() {
                         </>
                     )}
 
+                    {profile?.role === 'user' && !hasTrainer && (
+                        <Link href="/pricing" style={isActive('/pricing')} onClick={closeMenu}>Plans</Link>
+                    )}
                     <Link href="/app/profile" style={isActive('/app/profile')} onClick={closeMenu}>Profile</Link>
 
                     <button onClick={() => { closeMenu(); signOut(); }} style={{

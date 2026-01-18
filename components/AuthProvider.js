@@ -11,6 +11,7 @@ export const useAuth = () => useContext(AuthContext)
 export default function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
     const [profile, setProfile] = useState(null)
+    const [hasTrainer, setHasTrainer] = useState(false)
     const [loading, setLoading] = useState(true)
     const router = useRouter()
 
@@ -26,6 +27,20 @@ export default function AuthProvider({ children }) {
                 console.error('Error fetching profile:', error)
             } else {
                 setProfile(data)
+
+                // Check if user has a trainer
+                if (data.role === 'user') {
+                    const { count, error: trainerError } = await supabase
+                        .from('trainer_users')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('user_id', userId)
+
+                    if (!trainerError) {
+                        setHasTrainer(count > 0)
+                    }
+                } else {
+                    setHasTrainer(false)
+                }
             }
         } catch (err) {
             console.error('Profile fetch error:', err)
@@ -42,6 +57,7 @@ export default function AuthProvider({ children }) {
             } else {
                 setUser(null)
                 setProfile(null)
+                setHasTrainer(false)
             }
             setLoading(false)
 
@@ -52,6 +68,7 @@ export default function AuthProvider({ children }) {
                 } else {
                     setUser(null)
                     setProfile(null)
+                    setHasTrainer(false)
                 }
                 setLoading(false)
             })
@@ -65,6 +82,7 @@ export default function AuthProvider({ children }) {
     const value = {
         user,
         profile,
+        hasTrainer,
         loading,
         refreshProfile: () => fetchProfile(user?.id),
         signOut: async () => {
