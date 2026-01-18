@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ConfirmModal from '../../../../components/ConfirmModal'
 
 export default function WorkoutDetailsPage({ params }) {
     const { id } = use(params)
@@ -12,6 +13,8 @@ export default function WorkoutDetailsPage({ params }) {
     const [session, setSession] = useState(null)
     const [loading, setLoading] = useState(true)
     const router = useRouter()
+
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, onConfirm: null })
 
     // Fetch session logic (unchanged)... should verify I don't break it. 
     // Wait, need to refresh the page/data after update/delete.
@@ -42,8 +45,15 @@ export default function WorkoutDetailsPage({ params }) {
         fetchSession()
     }, [id])
 
-    const handleDelete = async (logId) => {
-        if (!confirm('Are you sure you want to delete this set?')) return
+    const handleDelete = (logId) => {
+        setConfirmModal({
+            isOpen: true,
+            onConfirm: () => performDelete(logId)
+        })
+    }
+
+    const performDelete = async (logId) => {
+        setConfirmModal({ ...confirmModal, isOpen: false })
 
         const { error } = await supabase
             .from('workout_logs')
@@ -51,7 +61,7 @@ export default function WorkoutDetailsPage({ params }) {
             .eq('id', logId)
 
         if (error) {
-            alert('Error deleting log')
+            alert('Error deleting log') // We can also upgrade this to AlertModal later if needed, but keeping scope tight
             console.error(error)
         } else {
             // Check if this was the last log
@@ -196,6 +206,16 @@ export default function WorkoutDetailsPage({ params }) {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                onConfirm={confirmModal.onConfirm}
+                title="Delete Set"
+                message="Are you sure you want to delete this set? This action cannot be undone."
+                confirmText="Delete"
+                isDanger={true}
+            />
         </div>
     )
 }
