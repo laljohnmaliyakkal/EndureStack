@@ -48,35 +48,17 @@ export default function PricingPage() {
                     </header>
                 )}
 
-                <div style={{ textAlign: 'center', marginBottom: '3rem', marginTop: user ? '0' : '0' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Flexible Pricing for Everyone</h1>
-                    <p style={{ color: 'var(--secondary)', fontSize: '1.1rem' }}>Choose the plan that fits your fitness journey.</p>
+                <div className="pricing-header" style={{ marginTop: user ? '0' : '0' }}>
+                    <h1 className="pricing-title">Flexible Pricing for Everyone</h1>
+                    <p className="pricing-subtitle">Choose the plan that fits your fitness journey.</p>
 
                     {/* Billing Cycle Toggle */}
-                    <div style={{
-                        display: 'inline-flex',
-                        backgroundColor: 'var(--secondary-bg)',
-                        padding: '0.25rem',
-                        borderRadius: '2rem',
-                        marginTop: '2rem',
-                        flexWrap: 'wrap',
-                        gap: '0.25rem'
-                    }}>
+                    <div className="billing-toggle">
                         {Object.keys(PRICING).map((cycle) => (
                             <button
                                 key={cycle}
                                 onClick={() => setBillingCycle(cycle)}
-                                style={{
-                                    padding: '0.5rem 1.25rem',
-                                    borderRadius: '1.5rem',
-                                    border: 'none',
-                                    backgroundColor: billingCycle === cycle ? 'white' : 'transparent',
-                                    color: billingCycle === cycle ? 'var(--foreground)' : 'var(--secondary)',
-                                    fontWeight: '600',
-                                    boxShadow: billingCycle === cycle ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-                                    transition: 'all 0.2s',
-                                    cursor: 'pointer'
-                                }}
+                                className={`billing-btn ${billingCycle === cycle ? 'active' : ''}`}
                             >
                                 {PRICING[cycle].label}
                             </button>
@@ -84,15 +66,7 @@ export default function PricingPage() {
                     </div>
                 </div>
 
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                    gap: '2rem',
-                    maxWidth: '900px',
-                    margin: '0 auto',
-                    width: '100%',
-                    paddingBottom: '3rem'
-                }}>
+                <div className="pricing-grid">
                     {/* Base Plan */}
                     <div className="card" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>Base Plan</h2>
