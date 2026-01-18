@@ -53,7 +53,6 @@ export default function Navbar() {
 
                     {profile?.role === 'admin' && (
                         <>
-                            <Link href="/app/admin/gyms" style={isActive('/app/admin/gyms')} onClick={closeMenu}>Gyms</Link>
                             <Link href="/app/admin/users" style={isActive('/app/admin/users')} onClick={closeMenu}>Crew</Link>
                         </>
                     )}

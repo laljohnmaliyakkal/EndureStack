@@ -75,10 +75,6 @@ export default function AdminClientProfilePage({ params }) {
                         <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Weight</p>
                         <p style={{ fontSize: '1.25rem', fontWeight: '600' }}>{client.weight_kg ? `${client.weight_kg}kg` : '-'}</p>
                     </div>
-                    <div>
-                        <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Gym ID</p>
-                        <p style={{ fontSize: '1rem', fontWeight: '400', color: 'var(--foreground)' }}>{client.gym_id || '-'}</p>
-                    </div>
                 </div>
             </div>
         </div>
