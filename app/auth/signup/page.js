@@ -31,7 +31,7 @@ export default function Signup() {
 
             if (signUpError) throw signUpError
 
-            router.push('/app/dashboard')
+            router.push('/app/profile')
         } catch (err) {
             setError(err.message)
         } finally {
