@@ -9,6 +9,7 @@ export default function Dashboard() {
     const { profile, user } = useAuth()
     const [stats, setStats] = useState({
         gyms: 0,
+        gymName: '',
         trainers: 0,
         clients: 0,
         daysTrained: 0,
@@ -28,6 +29,16 @@ export default function Dashboard() {
                     const gymIds = gyms.map(g => g.gym_id)
                     const gymCount = gyms.length
 
+                    let fetchedGymName = ''
+                    if (gymIds.length > 0) {
+                        const { data: gymData } = await supabase
+                            .from('gyms')
+                            .select('name')
+                            .eq('id', gymIds[0]) // Assuming first gym for now
+                            .single()
+                        if (gymData) fetchedGymName = gymData.name
+                    }
+
                     if (gymIds.length > 0) {
                         // 2. Count Trainers
                         const { count: trainerCount } = await supabase
@@ -46,11 +57,12 @@ export default function Dashboard() {
                         setStats(prev => ({
                             ...prev,
                             gyms: gymCount,
+                            gymName: fetchedGymName,
                             trainers: trainerCount || 0,
                             clients: clientCount || 0
                         }))
                     } else {
-                        setStats(prev => ({ ...prev, gyms: 0, trainers: 0, clients: 0 }))
+                        setStats(prev => ({ ...prev, gyms: 0, gymName: '', trainers: 0, clients: 0 }))
                     }
                 }
             }
@@ -94,6 +106,55 @@ export default function Dashboard() {
                     .eq('user_id', user.id)
                     .single()
 
+                // 4. Calculate Streak
+                const { data: sessions } = await supabase
+                    .from('workout_sessions')
+                    .select('session_date')
+                    .eq('user_id', user.id)
+                    .order('session_date', { ascending: false })
+
+                let streak = 0
+                if (sessions) {
+                    const dates = new Set(sessions.map(s => s.session_date))
+                    let checkDate = new Date()
+                    let keepChecking = true
+
+                    // Normalize to YYYY-MM-DD local logic if needed, but session_date is YYYY-MM-DD string from specific timezone? 
+                    // Assuming session_date is stored as YYYY-MM-DD string in DB.
+                    // We need to match client local time or UTC? The app seems to use `new Date().toISOString().split('T')[0]` which is UTC.
+                    // Let's stick to the same convention used in existing code: `today` variable.
+
+                    // Simple helper to subtract days
+                    const subDays = (date, n) => {
+                        const d = new Date(date)
+                        d.setDate(d.getDate() - n)
+                        return d
+                    }
+
+                    // We iterate using Date objects but compare using ISO strings
+                    checkDate = new Date() // Today
+
+                    while (keepChecking) {
+                        const dateStr = checkDate.toISOString().split('T')[0]
+                        const dayOfWeek = checkDate.getDay() // 0 is Sunday
+
+                        if (dates.has(dateStr)) {
+                            streak++
+                            checkDate = subDays(checkDate, 1)
+                        } else {
+                            if (dateStr === today) {
+                                // If today is missed, checks yesterday. Don't break yet.
+                                checkDate = subDays(checkDate, 1)
+                            } else if (dayOfWeek === 0) { // Sunday
+                                // Skip Sunday if missed
+                                checkDate = subDays(checkDate, 1)
+                            } else {
+                                keepChecking = false
+                            }
+                        }
+                    }
+                }
+
                 if (assignment) {
                     const { data: trainerDetails } = await supabase
                         .from('profiles')
@@ -106,13 +167,14 @@ export default function Dashboard() {
                             ...prev,
                             daysTrained: daysTrained || 0,
                             scheduledWorkouts: scheduledCount || 0,
+                            streak: streak,
                             trainer: { id: trainerDetails.user_id, full_name: trainerDetails.full_name }
                         }))
                     } else {
-                        setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, trainer: null }))
+                        setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, trainer: null }))
                     }
                 } else {
-                    setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, trainer: null }))
+                    setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, trainer: null }))
                 }
             }
         }
@@ -134,8 +196,8 @@ export default function Dashboard() {
                         <p style={{ marginBottom: '1rem' }}>Manage your gyms and crew here.</p>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                             <div className="card" style={{ padding: '1.5rem' }}>
-                                <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Gyms</h3>
-                                <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>{stats.gyms}</p>
+                                <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Gym</h3>
+                                <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.gymName || 'N/A'}</p>
                             </div>
                             <Link href="/app/admin/users?role=trainer" style={{ textDecoration: 'none' }}>
                                 <div className="card" style={{ padding: '1.5rem', cursor: 'pointer', height: '100%' }}>
@@ -180,6 +242,25 @@ export default function Dashboard() {
 
                 {profile.role === 'user' && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
+
+                        {/* Streak Tile */}
+                        <div className="card" style={{
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <div>
+                                <h3 style={{ color: '#f59e0b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span>🔥</span> Streak
+                                </h3>
+                                <p style={{ fontSize: '3rem', fontWeight: 'bold', margin: '0' }}>{stats.streak || 0}</p>
+                            </div>
+                            <p style={{ color: 'var(--secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>
+                                Consecutive days
+                            </p>
+                        </div>
 
                         {/* Days Trained Tile */}
                         <Link href="/app/workouts" style={{ textDecoration: 'none' }}>

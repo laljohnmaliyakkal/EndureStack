@@ -83,6 +83,15 @@ export default function UsersPage() {
     }, [user])
 
     const handlePromote = async (userId, newRole) => {
+        // Validation: If demoting to user, check for active clients
+        if (newRole === 'user') {
+            const clientCount = getClientCount(userId)
+            if (clientCount > 0) {
+                alert(`Cannot demote trainer. They have ${clientCount} active client(s). Please reassign or transfer their clients first.`)
+                return
+            }
+        }
+
         const { error } = await supabase.from('profiles').update({ role: newRole }).eq('user_id', userId)
         if (!error) fetchUsers()
     }

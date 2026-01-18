@@ -22,15 +22,19 @@ export default function WorkoutDetailsPage({ params }) {
             .from('workout_sessions')
             .select('*, workout_logs(*)')
             .eq('id', id)
-            .single()
+            .maybeSingle()
 
         if (error) {
             console.error('Error fetching session:', error)
+            return
+        }
+
+        if (!data) {
             router.push('/app/workouts')
             return
         }
 
-        if (data) setSession(data)
+        setSession(data)
         setLoading(false)
     }
 
@@ -50,7 +54,13 @@ export default function WorkoutDetailsPage({ params }) {
             alert('Error deleting log')
             console.error(error)
         } else {
-            fetchSession() // Refresh data
+            // Check if this was the last log
+            const remaining = session.workout_logs.filter(l => l.id !== logId)
+            if (remaining.length === 0) {
+                router.push('/app/workouts')
+            } else {
+                fetchSession() // Refresh data
+            }
         }
     }
 
