@@ -8,6 +8,7 @@ import Link from 'next/link'
 export default function TrainerClientsPage() {
     const { user } = useAuth()
     const [clients, setClients] = useState([])
+    const [searchQuery, setSearchQuery] = useState('')
 
     useEffect(() => {
         if (user) {
@@ -40,11 +41,20 @@ export default function TrainerClientsPage() {
         <div>
             <h1 style={{ marginBottom: '1.5rem' }}>My Clients</h1>
 
+            <input
+                type="text"
+                className="input"
+                placeholder="Search clients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ marginBottom: '1.5rem' }}
+            />
+
             {clients.length === 0 ? (
                 <p>No clients assigned yet.</p>
             ) : (
                 <div style={{ display: 'grid', gap: '1rem' }}>
-                    {clients.map(client => (
+                    {clients.filter(c => c.full_name.toLowerCase().includes(searchQuery.toLowerCase())).map(client => (
                         <div key={client.user_id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {/* Top Row: Client Info */}
                             <Link href={`/app/trainer/users/${client.user_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '1rem' }}>
