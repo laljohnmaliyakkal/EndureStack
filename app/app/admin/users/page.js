@@ -6,6 +6,8 @@ import { useAuth } from '../../../../components/AuthProvider'
 
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Modal from '../../../../components/Modal'
+import ConfirmModal from '../../../../components/ConfirmModal'
 
 export default function UsersPage() {
     const { user } = useAuth()
@@ -29,6 +31,9 @@ export default function UsersPage() {
     const [selectedTrainer, setSelectedTrainer] = useState('')
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
     const [isTransfer, setIsTransfer] = useState(false)
+
+    // Alert State
+    const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' })
 
     const fetchUsers = async () => {
         if (!user) return
@@ -87,7 +92,11 @@ export default function UsersPage() {
         if (newRole === 'user') {
             const clientCount = getClientCount(userId)
             if (clientCount > 0) {
-                alert(`Cannot demote trainer. They have ${clientCount} active client(s). Please reassign or transfer their clients first.`)
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Cannot Demote Trainer',
+                    message: `They have ${clientCount} active client(s). Please reassign or transfer their clients first.`
+                })
                 return
             }
         }
@@ -135,10 +144,52 @@ export default function UsersPage() {
 
         if (!error) {
             setIsAssignModalOpen(false)
-            alert(isTransfer ? 'Trainer transferred!' : 'Trainer assigned!')
+            setAlertModal({
+                isOpen: true,
+                title: 'Success',
+                message: isTransfer ? 'Trainer transferred successfully!' : 'Trainer assigned successfully!'
+            })
             fetchUsers() // Refresh to update assignments map
         } else {
-            alert('Error assigning trainer: ' + error.message)
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error assigning trainer: ' + error.message
+            })
+        }
+    }
+
+    const handleUnassign = async () => {
+        if (!assigningUser) return
+
+        // Find existing assignment
+        const { data: existing } = await supabase
+            .from('trainer_users')
+            .select('id')
+            .eq('user_id', assigningUser.user_id)
+            .single()
+
+        if (existing) {
+            const { error } = await supabase
+                .from('trainer_users')
+                .delete()
+                .eq('id', existing.id)
+
+            if (!error) {
+                setIsAssignModalOpen(false)
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Success',
+                    message: 'Trainer unassigned successfully!'
+                })
+                fetchUsers()
+            } else {
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Error',
+                    message: 'Error unassigning trainer: ' + error.message
+                })
+            }
         }
     }
 
@@ -243,9 +294,11 @@ export default function UsersPage() {
                                         {/* Role Management */}
                                         {u.role === 'user' && (
                                             <>
-                                                <button onClick={() => handlePromote(u.user_id, 'trainer')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--success)', padding: '0.3rem 0.6rem' }}>
-                                                    Promote
-                                                </button>
+                                                {!assignedTrainerId && (
+                                                    <button onClick={() => handlePromote(u.user_id, 'trainer')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--success)', padding: '0.3rem 0.6rem' }}>
+                                                        Promote
+                                                    </button>
+                                                )}
 
                                                 {assignedTrainerId ? (
                                                     <button
@@ -286,50 +339,59 @@ export default function UsersPage() {
                 </table>
             </div>
 
+            {/* Alert Modal */}
+            <ConfirmModal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+                title={alertModal.title}
+                message={alertModal.message}
+                isAlert={true}
+            />
+
             {/* Assign/Transfer Modal */}
-            {isAssignModalOpen && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    backdropFilter: 'blur(4px)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 100
-                }}>
-                    <div className="card" style={{ width: '90%', maxWidth: '400px' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>{isTransfer ? 'Transfer Client' : 'Assign Trainer'}</h3>
-                        <p style={{ marginBottom: '1.5rem' }}>
-                            {isTransfer
-                                ? `Select a new trainer for ${assigningUser?.full_name}.`
-                                : `Assign a trainer to ${assigningUser?.full_name}.`
-                            }
-                        </p>
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Select Trainer</label>
-                            <select
-                                className="input"
-                                value={selectedTrainer}
-                                onChange={e => setSelectedTrainer(e.target.value)}
-                            >
-                                <option value="">Select a trainer...</option>
-                                {trainers.map(t => (
-                                    <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
-                                ))}
-                            </select>
+            <Modal
+                isOpen={isAssignModalOpen}
+                onClose={() => setIsAssignModalOpen(false)}
+                title={isTransfer ? 'Transfer Client' : 'Assign Trainer'}
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ display: 'flex' }}>
+                            {isTransfer && (
+                                <button onClick={handleUnassign} className="btn" style={{ backgroundColor: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', marginRight: 'auto' }}>
+                                    Unassign
+                                </button>
+                            )}
                         </div>
-
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
                             <button onClick={() => setIsAssignModalOpen(false)} className="btn" style={{ backgroundColor: 'var(--secondary)' }}>Cancel</button>
                             <button onClick={handleAssignTrainer} className="btn" disabled={!selectedTrainer}>
                                 {isTransfer ? 'Transfer' : 'Assign'}
                             </button>
                         </div>
                     </div>
+                }
+            >
+                <p style={{ marginBottom: '1.5rem' }}>
+                    {isTransfer
+                        ? `Select a new trainer for ${assigningUser?.full_name}.`
+                        : `Assign a trainer to ${assigningUser?.full_name}.`
+                    }
+                </p>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Select Trainer</label>
+                    <select
+                        className="input"
+                        value={selectedTrainer}
+                        onChange={e => setSelectedTrainer(e.target.value)}
+                    >
+                        <option value="">Select a trainer...</option>
+                        {trainers.map(t => (
+                            <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
+                        ))}
+                    </select>
                 </div>
-            )}
+            </Modal>
         </div>
     )
 }

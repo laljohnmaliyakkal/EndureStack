@@ -5,6 +5,8 @@ import { supabase } from '../../../../../lib/supabase'
 import { useAuth } from '../../../../../components/AuthProvider'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import Modal from '../../../../../components/Modal'
+import ConfirmModal from '../../../../../components/ConfirmModal'
 
 export default function ClientProfilePage({ params }) {
     const { id } = use(params)
@@ -19,6 +21,7 @@ export default function ClientProfilePage({ params }) {
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
     const [selectedTrainer, setSelectedTrainer] = useState('')
     const [transferLoading, setTransferLoading] = useState(false)
+    const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' })
 
     useEffect(() => {
         const fetchData = async () => {
@@ -57,7 +60,7 @@ export default function ClientProfilePage({ params }) {
 
     const handleTransfer = async () => {
         if (!selectedTrainer) return
-        if (!confirm(`Are you sure you want to transfer ${client.full_name} to another trainer? You will lose access to this client.`)) return
+        // No redundant confirm() here; the modal action IS the confirmation.
 
         setTransferLoading(true)
 
@@ -78,13 +81,67 @@ export default function ClientProfilePage({ params }) {
 
                 if (error) throw error
 
-                alert('Client transferred successfully!')
-                router.push('/app/trainer/users')
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Success',
+                    message: 'Client transferred successfully!',
+                    onClose: () => router.push('/app/trainer/users')
+                })
             } else {
-                alert('Could not find active assignment to transfer.')
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Error',
+                    message: 'Could not find active assignment to transfer.'
+                })
             }
         } catch (error) {
-            alert('Error transferring client: ' + error.message)
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error transferring client: ' + error.message
+            })
+        } finally {
+            setTransferLoading(false)
+            setIsTransferModalOpen(false)
+        }
+    }
+
+    const handleUnassign = async () => {
+        setTransferLoading(true)
+
+        try {
+            // Find the active assignment
+            const { data: assignment } = await supabase
+                .from('trainer_users')
+                .select('id')
+                .eq('user_id', id)
+                .eq('trainer_id', user.id)
+                .single()
+
+            if (assignment) {
+                const { error } = await supabase
+                    .from('trainer_users')
+                    .delete()
+                    .eq('id', assignment.id)
+
+                if (error) throw error
+
+                setAlertModal({
+                    isOpen: true,
+                    title: 'Success',
+                    message: 'Client unassigned successfully!',
+                    onClose: () => router.push('/app/trainer/users')
+                })
+            } else {
+                // Already unassigned?
+                router.push('/app/trainer/users')
+            }
+        } catch (error) {
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error unassigning client: ' + error.message
+            })
         } finally {
             setTransferLoading(false)
             setIsTransferModalOpen(false)
@@ -152,41 +209,23 @@ export default function ClientProfilePage({ params }) {
             </div>
 
             {/* Transfer Modal */}
-            {isTransferModalOpen && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.7)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 100
-                }}>
-                    <div className="card" style={{ width: '90%', maxWidth: '400px' }}>
-                        <h3 style={{ marginBottom: '1rem' }}>Transfer Client</h3>
-                        <p style={{ marginBottom: '1.5rem', color: 'var(--secondary)' }}>
-                            Select a new trainer for <strong>{client.full_name}</strong>. You will lose access to this client after transfer.
-                        </p>
-
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>New Trainer</label>
-                            <select
-                                className="input"
-                                value={selectedTrainer}
-                                onChange={e => setSelectedTrainer(e.target.value)}
+            <Modal
+                isOpen={isTransferModalOpen}
+                onClose={() => setIsTransferModalOpen(false)}
+                title="Transfer Client"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ display: 'flex' }}>
+                            <button
+                                onClick={handleUnassign}
+                                className="btn"
+                                style={{ backgroundColor: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', marginRight: 'auto' }}
+                                disabled={transferLoading}
                             >
-                                <option value="">Select a trainer...</option>
-                                {trainers.length > 0 ? (
-                                    trainers.map(t => (
-                                        <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
-                                    ))
-                                ) : (
-                                    <option disabled>No other trainers available</option>
-                                )}
-                            </select>
+                                Unassign
+                            </button>
                         </div>
-
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
                             <button
                                 onClick={() => setIsTransferModalOpen(false)}
                                 className="btn"
@@ -205,8 +244,42 @@ export default function ClientProfilePage({ params }) {
                             </button>
                         </div>
                     </div>
+                }
+            >
+                <p style={{ marginBottom: '1.5rem', color: 'var(--secondary)' }}>
+                    Select a new trainer for <strong>{client.full_name}</strong>. You will lose access to this client after transfer.
+                </p>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>New Trainer</label>
+                    <select
+                        className="input"
+                        value={selectedTrainer}
+                        onChange={e => setSelectedTrainer(e.target.value)}
+                    >
+                        <option value="">Select a trainer...</option>
+                        {trainers.length > 0 ? (
+                            trainers.map(t => (
+                                <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
+                            ))
+                        ) : (
+                            <option disabled>No other trainers available</option>
+                        )}
+                    </select>
                 </div>
-            )}
+            </Modal>
+
+            {/* Alert Modal */}
+            <ConfirmModal
+                isOpen={alertModal.isOpen}
+                onClose={() => {
+                    setAlertModal({ ...alertModal, isOpen: false })
+                    if (alertModal.onClose) alertModal.onClose()
+                }}
+                title={alertModal.title}
+                message={alertModal.message}
+                isAlert={true}
+            />
         </div>
     )
 }
