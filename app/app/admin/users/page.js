@@ -210,7 +210,7 @@ export default function UsersPage() {
                             return (
                                 <tr key={u.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
                                     <td style={{ padding: '0.75rem' }}>
-                                        <Link href={`/app/admin/users/${u.user_id}`} style={{ fontWeight: '500', textDecoration: 'underline' }}>
+                                        <Link href={`/app/admin/users/${u.user_id}`} style={{ fontWeight: '500' }}>
                                             {u.full_name}
                                         </Link>
                                     </td>
