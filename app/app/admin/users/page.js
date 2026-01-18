@@ -87,15 +87,28 @@ export default function UsersPage() {
         fetchUsers()
     }, [user])
 
+    // Demotion State
+    const [demotionModal, setDemotionModal] = useState({ isOpen: false, trainer: null, clients: [] })
+    const [reassignments, setReassignments] = useState({})
+
     const handlePromote = async (userId, newRole) => {
         // Validation: If demoting to user, check for active clients
         if (newRole === 'user') {
             const clientCount = getClientCount(userId)
             if (clientCount > 0) {
-                setAlertModal({
+                // Fetch details of these clients
+                // We can find them from our local `users` and `assignments` state
+                const trainerClients = users.filter(u => assignments[u.user_id] === userId)
+
+                // Initialize reassignments to 'unassign' for all
+                const initialReassignments = {}
+                trainerClients.forEach(c => initialReassignments[c.user_id] = 'unassign')
+
+                setReassignments(initialReassignments)
+                setDemotionModal({
                     isOpen: true,
-                    title: 'Cannot Demote Trainer',
-                    message: `This trainer has ${clientCount} active client(s). Please unassign or transfer the client before proceeding.`
+                    trainer: users.find(u => u.user_id === userId),
+                    clients: trainerClients
                 })
                 return
             }
@@ -190,6 +203,52 @@ export default function UsersPage() {
                     message: 'Error unassigning trainer: ' + error.message
                 })
             }
+        }
+    }
+
+    const handleConfirmDemotion = async () => {
+        if (!demotionModal.trainer) return
+
+        // 1. Process Reassignments
+        const updates = Object.entries(reassignments)
+
+        for (const [clientId, newTrainerId] of updates) {
+            // Find existing assignment ID
+            const { data: existing } = await supabase
+                .from('trainer_users')
+                .select('id')
+                .eq('user_id', clientId)
+                .single() // Should exist since we only listed assigned clients
+
+            if (existing) {
+                if (newTrainerId === 'unassign') {
+                    await supabase.from('trainer_users').delete().eq('id', existing.id)
+                } else {
+                    await supabase.from('trainer_users').update({ trainer_id: newTrainerId }).eq('id', existing.id)
+                }
+            }
+        }
+
+        // 2. Demote Trainer
+        const { error } = await supabase
+            .from('profiles')
+            .update({ role: 'user' })
+            .eq('user_id', demotionModal.trainer.user_id)
+
+        if (!error) {
+            setDemotionModal({ isOpen: false, trainer: null, clients: [] })
+            setAlertModal({
+                isOpen: true,
+                title: 'Success',
+                message: 'Clients processed and trainer demoted successfully!'
+            })
+            fetchUsers()
+        } else {
+            setAlertModal({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error demoting: ' + error.message
+            })
         }
     }
 
@@ -390,6 +449,59 @@ export default function UsersPage() {
                             <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
                         ))}
                     </select>
+                </div>
+            </Modal>
+
+            {/* Smart Demotion Modal */}
+            <Modal
+                isOpen={demotionModal.isOpen}
+                onClose={() => setDemotionModal({ ...demotionModal, isOpen: false })}
+                title={`Demote ${demotionModal.trainer?.full_name}`}
+                footer={
+                    <>
+                        <button
+                            onClick={() => setDemotionModal({ ...demotionModal, isOpen: false })}
+                            className="btn"
+                            style={{ backgroundColor: 'var(--secondary)' }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleConfirmDemotion}
+                            className="btn"
+                            style={{ backgroundColor: 'var(--danger)' }}
+                        >
+                            Confirm & Demote
+                        </button>
+                    </>
+                }
+            >
+                <div style={{ marginBottom: '1.5rem', color: 'var(--secondary)' }}>
+                    <p>This trainer has <strong>{demotionModal.clients.length}</strong> active client(s).</p>
+                    <p>Please reassign them before proceeding.</p>
+                </div>
+
+                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {demotionModal.clients.map(client => (
+                        <div key={client.user_id} className="card" style={{ padding: '0.75rem', backgroundColor: 'var(--background)' }}>
+                            <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{client.full_name}</p>
+                            <select
+                                className="input"
+                                value={reassignments[client.user_id] || 'unassign'}
+                                onChange={(e) => setReassignments(prev => ({ ...prev, [client.user_id]: e.target.value }))}
+                                style={{ marginBottom: 0, fontSize: '0.9rem' }}
+                            >
+                                <option value="unassign">Unassign (Set to Self-Training)</option>
+                                <optgroup label="Reassign to Trainer">
+                                    {trainers
+                                        .filter(t => t.user_id !== demotionModal.trainer?.user_id) // Exclude current
+                                        .map(t => (
+                                            <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
+                                        ))}
+                                </optgroup>
+                            </select>
+                        </div>
+                    ))}
                 </div>
             </Modal>
         </div>
