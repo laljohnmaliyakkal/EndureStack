@@ -214,7 +214,7 @@ export default function ClientProfilePage({ params }) {
                 onClose={() => setIsTransferModalOpen(false)}
                 title="Transfer Client"
                 footer={
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
                         <div style={{ display: 'flex' }}>
                             <button
                                 onClick={handleUnassign}
@@ -225,11 +225,11 @@ export default function ClientProfilePage({ params }) {
                                 Unassign
                             </button>
                         </div>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', flex: 1, justifyContent: 'flex-end', minWidth: '200px' }}>
                             <button
                                 onClick={() => setIsTransferModalOpen(false)}
                                 className="btn"
-                                style={{ backgroundColor: 'var(--secondary)' }}
+                                style={{ backgroundColor: 'var(--secondary)', flex: 1 }}
                                 disabled={transferLoading}
                             >
                                 Cancel
@@ -237,10 +237,10 @@ export default function ClientProfilePage({ params }) {
                             <button
                                 onClick={handleTransfer}
                                 className="btn"
-                                style={{ backgroundColor: '#be123c' }}
+                                style={{ backgroundColor: '#be123c', flex: 1 }}
                                 disabled={!selectedTrainer || transferLoading}
                             >
-                                {transferLoading ? 'Transferring...' : 'Confirm Transfer'}
+                                {transferLoading ? 'Transferring...' : 'Confirm'}
                             </button>
                         </div>
                     </div>

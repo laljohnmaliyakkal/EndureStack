@@ -95,7 +95,7 @@ export default function UsersPage() {
                 setAlertModal({
                     isOpen: true,
                     title: 'Cannot Demote Trainer',
-                    message: `They have ${clientCount} active client(s). Please reassign or transfer their clients first.`
+                    message: `This trainer has ${clientCount} active client(s). Please unassign or transfer the client before proceeding.`
                 })
                 return
             }
@@ -354,7 +354,7 @@ export default function UsersPage() {
                 onClose={() => setIsAssignModalOpen(false)}
                 title={isTransfer ? 'Transfer Client' : 'Assign Trainer'}
                 footer={
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '1rem' }}>
                         <div style={{ display: 'flex' }}>
                             {isTransfer && (
                                 <button onClick={handleUnassign} className="btn" style={{ backgroundColor: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', marginRight: 'auto' }}>
@@ -362,9 +362,9 @@ export default function UsersPage() {
                                 </button>
                             )}
                         </div>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <button onClick={() => setIsAssignModalOpen(false)} className="btn" style={{ backgroundColor: 'var(--secondary)' }}>Cancel</button>
-                            <button onClick={handleAssignTrainer} className="btn" disabled={!selectedTrainer}>
+                        <div style={{ display: 'flex', gap: '1rem', flex: 1, justifyContent: 'flex-end', minWidth: '200px' }}>
+                            <button onClick={() => setIsAssignModalOpen(false)} className="btn" style={{ backgroundColor: 'var(--secondary)', flex: 1 }}>Cancel</button>
+                            <button onClick={handleAssignTrainer} className="btn" disabled={!selectedTrainer} style={{ flex: 1 }}>
                                 {isTransfer ? 'Transfer' : 'Assign'}
                             </button>
                         </div>
