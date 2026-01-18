@@ -128,8 +128,64 @@ function Logger() {
         }
     }
 
+    const [editingLog, setEditingLog] = useState(null)
+    const [editValues, setEditValues] = useState({ weight: '', reps: '' })
+
+    const handleDelete = async (logId) => {
+        if (!confirm('Are you sure you want to delete this set?')) return
+
+        const { error } = await supabase
+            .from('workout_logs')
+            .delete()
+            .eq('id', logId)
+
+        if (error) {
+            alert('Error deleting log')
+            console.error(error)
+        } else {
+            fetchLogs(sessionId)
+        }
+    }
+
+    const startEdit = (log) => {
+        setEditingLog(log.id)
+        setEditValues({ weight: log.weight, reps: log.reps })
+    }
+
+    const cancelEdit = () => {
+        setEditingLog(null)
+        setEditValues({ weight: '', reps: '' })
+    }
+
+    const saveEdit = async (logId) => {
+        const { error } = await supabase
+            .from('workout_logs')
+            .update({
+                weight: editValues.weight,
+                reps: editValues.reps
+            })
+            .eq('id', logId)
+
+        if (error) {
+            alert('Error updating log')
+            console.error(error)
+        } else {
+            setEditingLog(null)
+            fetchLogs(sessionId)
+        }
+    }
+
+    // Group logs by workout name
+    const exercises = {}
+    logs.forEach(log => {
+        if (!exercises[log.workout_name]) {
+            exercises[log.workout_name] = []
+        }
+        exercises[log.workout_name].push(log)
+    })
+
     return (
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <div className="log-workout-container">
             <h1 style={{ marginBottom: '1.5rem' }}>Log Workout</h1>
 
             <div className="card" style={{ marginBottom: '2rem' }}>
@@ -144,7 +200,7 @@ function Logger() {
                 </div>
 
                 <form onSubmit={handleAddSet}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div className="log-form-grid">
                         <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Muscle Group</label>
                             <select
@@ -179,7 +235,7 @@ function Logger() {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '1rem' }}>
+                    <div className="log-input-group">
                         <div style={{ flex: 1 }}>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Reps/Min</label>
                             <input
@@ -208,24 +264,77 @@ function Logger() {
                 </form>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.5rem' }}>
-                {logs.map(log => (
-                    <div key={log.id} style={{
-                        backgroundColor: 'var(--card-bg)',
-                        padding: '1rem',
-                        borderRadius: '0.375rem',
-                        border: '1px solid var(--border)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                    }}>
-                        <div>
-                            <span style={{ fontWeight: 'bold' }}>{log.workout_name}</span>
-                            <div style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>
-                                {log.reps} reps @ {log.weight}kg
-                            </div>
+            <div className="workout-details-grid">
+                {Object.entries(exercises).map(([name, logs]) => (
+                    <div key={name} className="card">
+                        <h3 style={{ marginBottom: '1rem', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                            {name}
+                        </h3>
+
+                        <div className="log-table-wrapper">
+                            <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--foreground)', fontSize: '0.9rem', minWidth: '300px' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', color: 'var(--secondary)' }}>
+                                        <th style={{ padding: '0.25rem 0.5rem' }}>Set</th>
+                                        <th style={{ padding: '0.25rem 0.5rem' }}>Weight (kg)</th>
+                                        <th style={{ padding: '0.25rem 0.5rem' }}>Reps/Min</th>
+                                        <th style={{ padding: '0.25rem 0.5rem', textAlign: 'right' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {logs.sort((a, b) => a.set_number - b.set_number).map(log => (
+                                        <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <td style={{ padding: '0.25rem 0.5rem' }}>{log.set_number}</td>
+
+                                            {/* Weight Column */}
+                                            <td style={{ padding: '0.25rem 0.5rem' }}>
+                                                {editingLog === log.id ? (
+                                                    <input
+                                                        type="number"
+                                                        className="input"
+                                                        style={{ width: '60px', padding: '0.25rem', marginBottom: 0 }}
+                                                        value={editValues.weight}
+                                                        onChange={(e) => setEditValues({ ...editValues, weight: e.target.value })}
+                                                    />
+                                                ) : (
+                                                    log.weight
+                                                )}
+                                            </td>
+
+                                            {/* Reps Column */}
+                                            <td style={{ padding: '0.25rem 0.5rem' }}>
+                                                {editingLog === log.id ? (
+                                                    <input
+                                                        type="number"
+                                                        className="input"
+                                                        style={{ width: '60px', padding: '0.25rem', marginBottom: 0 }}
+                                                        value={editValues.reps}
+                                                        onChange={(e) => setEditValues({ ...editValues, reps: e.target.value })}
+                                                    />
+                                                ) : (
+                                                    log.reps
+                                                )}
+                                            </td>
+
+                                            {/* Actions Column */}
+                                            <td style={{ padding: '0.25rem 0.5rem', textAlign: 'right' }}>
+                                                {editingLog === log.id ? (
+                                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                        <button onClick={() => saveEdit(log.id)} style={{ color: 'var(--success)', fontSize: '1.2rem' }}>✓</button>
+                                                        <button onClick={cancelEdit} style={{ color: 'var(--secondary)', fontSize: '1.2rem' }}>✕</button>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                        <button onClick={() => startEdit(log)} style={{ color: 'var(--primary)' }} title="Edit">✎</button>
+                                                        <button onClick={() => handleDelete(log.id)} style={{ color: 'var(--danger)' }} title="Delete">🗑</button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                        <span style={{ color: 'var(--secondary)' }}>Set {log.set_number || 1}</span>
                     </div>
                 ))}
             </div>
