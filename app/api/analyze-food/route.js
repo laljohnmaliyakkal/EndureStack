@@ -4,6 +4,7 @@ import { Buffer } from 'buffer'
 
 export async function POST(request) {
     try {
+        console.log('request received')
         const formData = await request.formData()
         const image = formData.get('image')
 

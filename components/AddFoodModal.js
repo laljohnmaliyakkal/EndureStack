@@ -40,6 +40,7 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
                 method: 'POST',
                 body: uploadData
             })
+            console.log('response received', res)
             if (!res.ok) throw new Error('Analysis failed')
 
             const data = await res.json()
