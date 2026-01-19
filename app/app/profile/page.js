@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
+import { useSearchParams } from 'next/navigation'
 
 export default function Profile() {
     const { profile, user, refreshProfile } = useAuth()
+    const searchParams = useSearchParams()
     const [formData, setFormData] = useState({
         full_name: '',
         age: '',
@@ -23,6 +25,12 @@ export default function Profile() {
 
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
+
+    useEffect(() => {
+        if (searchParams.get('first_time')) {
+            setMessage('Welcome to EndureStack! Please complete your profile to get started.')
+        }
+    }, [searchParams])
 
     useEffect(() => {
         // Click outside handler

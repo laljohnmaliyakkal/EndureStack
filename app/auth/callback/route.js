@@ -34,6 +34,22 @@ export async function GET(request) {
         )
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
+            // Check if profile is complete
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('age, height_cm, weight_kg')
+                    .eq('user_id', user.id)
+                    .single()
+
+                // If profile is missing basic details, redirect to profile page
+                if (profile && (!profile.age || !profile.height_cm || !profile.weight_kg)) {
+                    return NextResponse.redirect(`${origin}/app/profile?first_time=true`)
+                }
+            }
+
             return NextResponse.redirect(`${origin}${next}`)
         }
     }
