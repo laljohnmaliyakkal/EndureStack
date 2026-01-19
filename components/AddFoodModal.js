@@ -20,7 +20,8 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
 
     // Image State
     const [imagePreview, setImagePreview] = useState(null)
-    const fileInputRef = useRef(null)
+    const galleryInputRef = useRef(null)
+    const cameraInputRef = useRef(null)
 
     const handleFileChange = async (e) => {
         const file = e.target.files[0]
@@ -128,11 +129,26 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
                     ) : (
                         <>
                             <p style={{ marginBottom: '1rem' }}>Take a photo or upload an image to analyze calories.</p>
-                            <button onClick={() => fileInputRef.current?.click()} className="btn">
-                                Select Image
-                            </button>
+                            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                                <button onClick={() => cameraInputRef.current?.click()} className="btn" style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
+                                    Take Photo 📸
+                                </button>
+                                <button onClick={() => galleryInputRef.current?.click()} className="btn" style={{ backgroundColor: 'var(--secondary)', color: 'var(--foreground)' }}>
+                                    From Gallery 🖼️
+                                </button>
+                            </div>
+
+                            {/* Hidden Inputs */}
                             <input
-                                ref={fileInputRef}
+                                ref={cameraInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                            />
+                            <input
+                                ref={galleryInputRef}
                                 type="file"
                                 accept="image/*"
                                 style={{ display: 'none' }}
