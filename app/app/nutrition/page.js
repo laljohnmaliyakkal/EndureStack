@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
 import AddFoodModal from '../../../components/AddFoodModal'
+import ConfirmModal from '../../../components/ConfirmModal'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -22,6 +23,7 @@ export default function NutritionPage() {
     const [loading, setLoading] = useState(true)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [summary, setSummary] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 })
+    const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', isAlert: false, isDanger: false, onConfirm: null })
 
     // Date Selection (default today)
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
@@ -67,14 +69,30 @@ export default function NutritionPage() {
         if (!error) {
             fetchLogs()
         } else {
-            alert('Error adding food: ' + error.message)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error adding food: ' + error.message,
+                isAlert: true
+            })
         }
     }
 
-    const handleDelete = async (id) => {
-        if (!confirm('Delete this food log?')) return
+    const executeDelete = async (id) => {
         await supabase.from('food_logs').delete().eq('id', id)
         fetchLogs()
+        setModalState(prev => ({ ...prev, isOpen: false }))
+    }
+
+    const requestDelete = (id) => {
+        setModalState({
+            isOpen: true,
+            title: 'Delete Food Log?',
+            message: 'Are you sure you want to delete this entry? This actions cannot be undone.',
+            isDanger: true,
+            isAlert: false,
+            onConfirm: () => executeDelete(id)
+        })
     }
 
     // Group logs by meal type
@@ -159,7 +177,7 @@ export default function NutritionPage() {
                                         {log.calories}
                                     </div>
                                     {!isViewingClient && (
-                                        <button onClick={() => handleDelete(log.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '1.2rem' }}>
+                                        <button onClick={() => requestDelete(log.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '1.2rem' }}>
                                             &times;
                                         </button>
                                     )}
@@ -203,6 +221,16 @@ export default function NutritionPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddFood}
+            />
+
+            <ConfirmModal
+                isOpen={modalState.isOpen}
+                onClose={() => setModalState({ ...modalState, isOpen: false })}
+                onConfirm={modalState.onConfirm}
+                title={modalState.title}
+                message={modalState.message}
+                isDanger={modalState.isDanger}
+                isAlert={modalState.isAlert}
             />
         </div>
     )
