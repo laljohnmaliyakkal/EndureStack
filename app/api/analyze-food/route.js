@@ -12,7 +12,7 @@ export async function POST(request) {
         }
 
         const apiKey = process.env.GEMINI_API_KEY
-        // DEBUG LOG
+        console.log('API Key:', apiKey)
         if (!apiKey) {
             return NextResponse.json({ error: 'Gemini API Key missing' }, { status: 500 })
         }
