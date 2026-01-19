@@ -12,13 +12,12 @@ export async function POST(request) {
             return NextResponse.json({ error: 'No image provided' }, { status: 400 })
         }
 
-        // const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY
-        // console.log('API Key:', apiKey)
-        // if (!apiKey) {
-        //     return NextResponse.json({ error: 'Gemini API Key missing' }, { status: 500 })
-        // }
+        const apiKey = process.env.GEMINI_API_KEY
+        if (!apiKey) {
+            return NextResponse.json({ error: 'Gemini API Key missing' }, { status: 500 })
+        }
 
-        const genAI = new GoogleGenerativeAI('AIzaSyBkMJ6mM8dxURO4dv1ZamzgAr0szGXvau8')
+        const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
 
         // Convert file to base64
