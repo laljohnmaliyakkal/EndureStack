@@ -2,11 +2,13 @@
 
 import { useState, useRef } from 'react'
 import Modal from './Modal'
+import ConfirmModal from './ConfirmModal'
 
 export default function AddFoodModal({ isOpen, onClose, onAdd }) {
     const [mode, setMode] = useState('camera') // 'manual' or 'camera'
     const [loading, setLoading] = useState(false)
     const [analyzing, setAnalyzing] = useState(false)
+    const [alertState, setAlertState] = useState({ isOpen: false, message: '' })
 
     // Form State
     const [formData, setFormData] = useState({
@@ -23,28 +25,70 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
     const galleryInputRef = useRef(null)
     const cameraInputRef = useRef(null)
 
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.readAsDataURL(file)
+            reader.onload = (event) => {
+                const img = new Image()
+                img.src = event.target.result
+                img.onload = () => {
+                    const canvas = document.createElement('canvas')
+                    const MAX_WIDTH = 800
+                    const MAX_HEIGHT = 800
+                    let width = img.width
+                    let height = img.height
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width
+                            width = MAX_WIDTH
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height
+                            height = MAX_HEIGHT
+                        }
+                    }
+
+                    canvas.width = width
+                    canvas.height = height
+                    const ctx = canvas.getContext('2d')
+                    ctx.drawImage(img, 0, 0, width, height)
+                    resolve(canvas.toDataURL('image/jpeg', 0.7))
+                }
+            }
+        })
+    }
+
     const handleFileChange = async (e) => {
         const file = e.target.files[0]
         if (!file) return
 
-        // Preview
-        const reader = new FileReader()
-        reader.onloadend = () => setImagePreview(reader.result)
-        reader.readAsDataURL(file)
-
-        // Auto Analyze
         setAnalyzing(true)
+
         try {
+            // Compress Image
+            const compressedBase64 = await compressImage(file)
+            setImagePreview(compressedBase64)
+
+            // Convert base64 to blob for upload
+            const res = await fetch(compressedBase64)
+            const blob = await res.blob()
+            const compressedFile = new File([blob], file.name, { type: 'image/jpeg' })
+
+            // Auto Analyze
             const uploadData = new FormData()
-            uploadData.append('image', file)
-            const res = await fetch('/api/analyze-food', {
+            uploadData.append('image', compressedFile)
+
+            const apiRes = await fetch('/api/analyze-food', {
                 method: 'POST',
                 body: uploadData
             })
-            console.log('response received', res)
-            if (!res.ok) throw new Error('Analysis failed')
 
-            const data = await res.json()
+            if (!apiRes.ok) throw new Error('Analysis failed')
+
+            const data = await apiRes.json()
             setFormData(prev => ({
                 ...prev,
                 food_name: data.food_name,
@@ -56,8 +100,11 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
             }))
             setMode('manual') // Switch to review mode
         } catch (error) {
-            console.log(error)
-            alert('Could not analyze image. Please enter details manually.')
+            console.error(error)
+            setAlertState({
+                isOpen: true,
+                message: 'Could not analyze image. Please enter details manually.'
+            })
         } finally {
             setAnalyzing(false)
         }
@@ -204,6 +251,14 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={alertState.isOpen}
+                onClose={() => setAlertState({ ...alertState, isOpen: false })}
+                title="Analysis Failed"
+                message={alertState.message}
+                isAlert={true}
+            />
         </Modal>
     )
 }
