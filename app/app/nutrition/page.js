@@ -4,9 +4,20 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
 import AddFoodModal from '../../../components/AddFoodModal'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
 export default function NutritionPage() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
+    const searchParams = useSearchParams()
+    const paramUserId = searchParams.get('userId')
+
+    // Determine if we are viewing another user's data
+    // Only trainers/admins should be doing this really, but RLS protects the data anyway.
+    const isViewingClient = paramUserId && user && paramUserId !== user.id
+    const targetUserId = isViewingClient ? paramUserId : (user ? user.id : null)
+
+
     const [logs, setLogs] = useState([])
     const [loading, setLoading] = useState(true)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -16,12 +27,13 @@ export default function NutritionPage() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
     const fetchLogs = async () => {
-        if (!user) return
+        if (!user || !targetUserId) return
 
         const { data, error } = await supabase
             .from('food_logs')
             .select('*')
-            .eq('user_id', user.id)
+            .eq('user_id', targetUserId)
+
             .eq('log_date', selectedDate)
             .order('created_at', { ascending: true })
 
@@ -41,8 +53,9 @@ export default function NutritionPage() {
     }
 
     useEffect(() => {
-        fetchLogs()
-    }, [user, selectedDate])
+        if (targetUserId) fetchLogs()
+    }, [user, targetUserId, selectedDate])
+
 
     const handleAddFood = async (foodData) => {
         const { error } = await supabase.from('food_logs').insert([{
@@ -75,7 +88,14 @@ export default function NutritionPage() {
     return (
         <div style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '4rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1>Nutrition</h1>
+                <div>
+                    <h1>Diet Analysis</h1>
+                    {isViewingClient && (
+                        <Link href={`/app/trainer/users/${targetUserId}`} style={{ fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none' }}>
+                            &larr; Back to Client Profile
+                        </Link>
+                    )}
+                </div>
                 <input
                     type="date"
                     className="input"
@@ -84,6 +104,7 @@ export default function NutritionPage() {
                     onChange={e => setSelectedDate(e.target.value)}
                 />
             </div>
+
 
             {/* Summary Card */}
             <div className="card" style={{ marginBottom: '2rem', backgroundImage: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: 'white', border: 'none' }}>
@@ -137,9 +158,11 @@ export default function NutritionPage() {
                                     <div style={{ fontWeight: 'bold', marginRight: '1rem' }}>
                                         {log.calories}
                                     </div>
-                                    <button onClick={() => handleDelete(log.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '1.2rem' }}>
-                                        &times;
-                                    </button>
+                                    {!isViewingClient && (
+                                        <button onClick={() => handleDelete(log.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '1.2rem' }}>
+                                            &times;
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -149,30 +172,32 @@ export default function NutritionPage() {
                 </div>
             ))}
 
-            {/* Floating Action Button */}
-            <button
-                onClick={() => setIsAddModalOpen(true)}
-                style={{
-                    position: 'fixed',
-                    bottom: '2rem',
-                    right: '2rem',
-                    width: '60px',
-                    height: '60px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    fontSize: '2rem',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 50
-                }}
-            >
-                +
-            </button>
+            {/* Floating Action Button - Only for owner */}
+            {!isViewingClient && (
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    style={{
+                        position: 'fixed',
+                        bottom: '2rem',
+                        right: '2rem',
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--primary)',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '2rem',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 50
+                    }}
+                >
+                    +
+                </button>
+            )}
 
             <AddFoodModal
                 isOpen={isAddModalOpen}

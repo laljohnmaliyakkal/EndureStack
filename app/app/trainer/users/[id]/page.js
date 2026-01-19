@@ -197,7 +197,11 @@ export default function ClientProfilePage({ params }) {
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <Link href={`/app/nutrition?userId=${id}`} className="btn" style={{ backgroundColor: '#059669', textDecoration: 'none', textAlign: 'center' }}>
+                        View Diet
+                    </Link>
+
                     <button
                         onClick={() => setIsTransferModalOpen(true)}
                         className="btn"
