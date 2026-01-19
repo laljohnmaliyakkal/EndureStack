@@ -41,6 +41,7 @@ export default function Navbar() {
                     {profile?.role === 'user' && (
                         <>
                             <Link href="/app/workouts" style={isActive('/app/workouts')} onClick={closeMenu}>Workouts</Link>
+                            <Link href="/app/nutrition" style={isActive('/app/nutrition')} onClick={closeMenu}>Nutrition</Link>
                             <Link href="/app/progress" style={isActive('/app/progress')} onClick={closeMenu}>Progress</Link>
                         </>
                     )}
