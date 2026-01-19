@@ -135,7 +135,6 @@ export default function AddFoodModal({ isOpen, onClose, onAdd }) {
                                 ref={fileInputRef}
                                 type="file"
                                 accept="image/*"
-                                capture="environment" // trigger camera on mobile
                                 style={{ display: 'none' }}
                                 onChange={handleFileChange}
                             />
