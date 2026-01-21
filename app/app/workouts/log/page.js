@@ -33,7 +33,7 @@ function Logger() {
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-    const [logToDelete, setLogToDelete] = useState(null)
+    const [deleteTarget, setDeleteTarget] = useState({ type: null, id: null, name: null })
 
     // Fetch Workouts Catalog
     useEffect(() => {
@@ -195,27 +195,44 @@ function Logger() {
     const [editingLog, setEditingLog] = useState(null)
     const [editValues, setEditValues] = useState({ weight: '', reps: '' })
 
-    const handleDelete = (logId) => {
-        setLogToDelete(logId)
+    const handleDeleteLog = (logId) => {
+        setDeleteTarget({ type: 'single', id: logId })
+        setIsDeleteModalOpen(true)
+    }
+
+    const handleDeleteExercise = (workoutName) => {
+        setDeleteTarget({ type: 'exercise', name: workoutName })
         setIsDeleteModalOpen(true)
     }
 
     const confirmDelete = async () => {
-        if (!logToDelete) return
+        if (!deleteTarget.type) return
 
-        const { error } = await supabase
-            .from('workout_logs')
-            .delete()
-            .eq('id', logToDelete)
+        let error = null
+
+        if (deleteTarget.type === 'single') {
+            const { error: singleError } = await supabase
+                .from('workout_logs')
+                .delete()
+                .eq('id', deleteTarget.id)
+            error = singleError
+        } else if (deleteTarget.type === 'exercise') {
+            const { error: groupError } = await supabase
+                .from('workout_logs')
+                .delete()
+                .eq('session_id', sessionId)
+                .eq('workout_name', deleteTarget.name)
+            error = groupError
+        }
 
         if (error) {
-            alert('Error deleting log')
+            alert('Error deleting: ' + error.message)
             console.error(error)
         } else {
             fetchLogs(sessionId)
         }
         setIsDeleteModalOpen(false)
-        setLogToDelete(null)
+        setDeleteTarget({ type: null, id: null, name: null })
     }
 
     const startEdit = (log) => {
@@ -354,9 +371,25 @@ function Logger() {
             <div className="workout-details-grid">
                 {Object.entries(exercises).map(([name, logs]) => (
                     <div key={name} className="card">
-                        <h3 style={{ marginBottom: '1rem', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                            {name}
-                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                            <h3 style={{ color: 'var(--primary)', margin: 0 }}>
+                                {name}
+                            </h3>
+                            <button
+                                onClick={() => handleDeleteExercise(name)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--danger)',
+                                    cursor: 'pointer',
+                                    fontSize: '1.2rem',
+                                    padding: '0.25rem'
+                                }}
+                                title="Delete entire exercise"
+                            >
+                                🗑
+                            </button>
+                        </div>
 
                         <div className="log-table-wrapper">
                             <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--foreground)', fontSize: '0.9rem', minWidth: '300px' }}>
@@ -373,7 +406,6 @@ function Logger() {
                                         <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                             <td style={{ padding: '0.25rem 0.5rem' }}>{log.set_number}</td>
 
-                                            {/* Weight Column */}
                                             <td style={{ padding: '0.25rem 0.5rem' }}>
                                                 {editingLog === log.id ? (
                                                     <input
@@ -388,7 +420,6 @@ function Logger() {
                                                 )}
                                             </td>
 
-                                            {/* Reps Column */}
                                             <td style={{ padding: '0.25rem 0.5rem' }}>
                                                 {editingLog === log.id ? (
                                                     <input
@@ -403,7 +434,6 @@ function Logger() {
                                                 )}
                                             </td>
 
-                                            {/* Actions Column */}
                                             <td style={{ padding: '0.25rem 0.5rem', textAlign: 'right' }}>
                                                 {editingLog === log.id ? (
                                                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -413,7 +443,7 @@ function Logger() {
                                                 ) : (
                                                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                                                         <button onClick={() => startEdit(log)} style={{ color: 'var(--primary)' }} title="Edit">✎</button>
-                                                        <button onClick={() => handleDelete(log.id)} style={{ color: 'var(--danger)' }} title="Delete">🗑</button>
+                                                        <button onClick={() => handleDeleteLog(log.id)} style={{ color: 'var(--danger)' }} title="Delete">🗑</button>
                                                     </div>
                                                 )}
                                             </td>
@@ -425,7 +455,6 @@ function Logger() {
                     </div>
                 ))}
             </div>
-
 
             <AddExerciseModal
                 isOpen={isAddModalOpen}
@@ -457,9 +486,14 @@ function Logger() {
                     </div>
                 }
             >
-                <p>Are you sure you want to delete this set? This action cannot be undone.</p>
+                <p>
+                    {deleteTarget.type === 'exercise'
+                        ? `Are you sure you want to delete ALL sets for "${deleteTarget.name}"?`
+                        : "Are you sure you want to delete this set?"}
+                </p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--secondary)', marginTop: '0.5rem' }}>This action cannot be undone.</p>
             </Modal>
-        </div >
+        </div>
     )
 }
 

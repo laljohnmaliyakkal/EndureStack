@@ -14,11 +14,7 @@ export default function WorkoutDetailsPage({ params }) {
     const [loading, setLoading] = useState(true)
     const router = useRouter()
 
-    const [confirmModal, setConfirmModal] = useState({ isOpen: false, onConfirm: null })
-
-    // Fetch session logic (unchanged)... should verify I don't break it. 
-    // Wait, need to refresh the page/data after update/delete.
-    // Let's refactor fetchSession out of useEffect or just trigger a re-fetch.
+    const [confirmModal, setConfirmModal] = useState({ isOpen: false, onConfirm: null, message: '' })
 
     const fetchSession = async () => {
         const { data, error } = await supabase
@@ -48,6 +44,7 @@ export default function WorkoutDetailsPage({ params }) {
     const handleDelete = (logId) => {
         setConfirmModal({
             isOpen: true,
+            message: "Are you sure you want to delete this set? This action cannot be undone.",
             onConfirm: () => performDelete(logId)
         })
     }
@@ -61,7 +58,7 @@ export default function WorkoutDetailsPage({ params }) {
             .eq('id', logId)
 
         if (error) {
-            alert('Error deleting log') // We can also upgrade this to AlertModal later if needed, but keeping scope tight
+            alert('Error deleting log')
             console.error(error)
         } else {
             // Check if this was the last log
@@ -70,6 +67,37 @@ export default function WorkoutDetailsPage({ params }) {
                 router.push('/app/workouts')
             } else {
                 fetchSession() // Refresh data
+            }
+        }
+    }
+
+    const handleDeleteExercise = (workoutName) => {
+        setConfirmModal({
+            isOpen: true,
+            message: `Are you sure you want to delete ALL sets for "${workoutName}"? This action cannot be undone.`,
+            onConfirm: () => performDeleteExercise(workoutName)
+        })
+    }
+
+    const performDeleteExercise = async (workoutName) => {
+        setConfirmModal({ ...confirmModal, isOpen: false })
+
+        const { error } = await supabase
+            .from('workout_logs')
+            .delete()
+            .eq('session_id', id)
+            .eq('workout_name', workoutName)
+
+        if (error) {
+            alert('Error deleting exercise')
+            console.error(error)
+        } else {
+            // Check if there are any other exercises left
+            const remaining = session.workout_logs.filter(l => l.workout_name !== workoutName)
+            if (remaining.length === 0) {
+                router.push('/app/workouts')
+            } else {
+                fetchSession()
             }
         }
     }
@@ -129,9 +157,25 @@ export default function WorkoutDetailsPage({ params }) {
             <div className="workout-details-grid">
                 {Object.entries(exercises).map(([name, logs]) => (
                     <div key={name} className="card">
-                        <h3 style={{ marginBottom: '1rem', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-                            {name}
-                        </h3>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                            <h3 style={{ color: 'var(--primary)', margin: 0 }}>
+                                {name}
+                            </h3>
+                            <button
+                                onClick={() => handleDeleteExercise(name)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--danger)',
+                                    cursor: 'pointer',
+                                    fontSize: '1.2rem',
+                                    padding: '0.25rem'
+                                }}
+                                title="Delete entire exercise"
+                            >
+                                🗑
+                            </button>
+                        </div>
 
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--foreground)', fontSize: '0.9rem' }}>
@@ -211,8 +255,8 @@ export default function WorkoutDetailsPage({ params }) {
                 isOpen={confirmModal.isOpen}
                 onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
                 onConfirm={confirmModal.onConfirm}
-                title="Delete Set"
-                message="Are you sure you want to delete this set? This action cannot be undone."
+                title="Confirm Delete"
+                message={confirmModal.message}
                 confirmText="Delete"
                 isDanger={true}
             />

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -13,6 +13,7 @@ export default function AuthProvider({ children }) {
     const [profile, setProfile] = useState(null)
     const [hasTrainer, setHasTrainer] = useState(false)
     const [loading, setLoading] = useState(true)
+    const lastUserId = useRef(null) // Track the last processed user ID to prevent redundant updates
     const router = useRouter()
 
     const fetchProfile = async (userId) => {
@@ -47,30 +48,41 @@ export default function AuthProvider({ children }) {
         }
     }
 
+    // Helper to handle user updates and prevent redundant fetches
+    const handleUserUpdate = async (session) => {
+        const currentUserId = session?.user?.id || null
+
+        // If the User ID hasn't changed, strictly do nothing.
+        // This blocks redundant token refreshes from resetting state.
+        if (currentUserId === lastUserId.current) {
+            setLoading(false)
+            return
+        }
+
+        // Update the ref to the new ID
+        lastUserId.current = currentUserId
+
+        if (currentUserId) {
+            setUser(session.user)
+            // Only fetch profile if we have a real user
+            await fetchProfile(currentUserId)
+        } else {
+            setUser(null)
+            setProfile(null)
+            setHasTrainer(false)
+        }
+        setLoading(false)
+    }
+
     useEffect(() => {
         const initializeAuth = async () => {
+            // Initial Check
             const { data: { session } } = await supabase.auth.getSession()
+            await handleUserUpdate(session)
 
-            if (session?.user) {
-                setUser(session.user)
-                await fetchProfile(session.user.id)
-            } else {
-                setUser(null)
-                setProfile(null)
-                setHasTrainer(false)
-            }
-            setLoading(false)
-
+            // Listener
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (session?.user) {
-                    setUser(session.user)
-                    await fetchProfile(session.user.id)
-                } else {
-                    setUser(null)
-                    setProfile(null)
-                    setHasTrainer(false)
-                }
-                setLoading(false)
+                await handleUserUpdate(session)
             })
 
             return () => subscription.unsubscribe()
@@ -86,6 +98,7 @@ export default function AuthProvider({ children }) {
         loading,
         refreshProfile: () => fetchProfile(user?.id),
         signOut: async () => {
+            lastUserId.current = null // Reset the ref so next login works
             await supabase.auth.signOut()
             router.push('/auth/login')
         }

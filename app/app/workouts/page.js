@@ -22,7 +22,7 @@ export default function WorkoutsPage() {
             }
             fetchSessions()
         }
-    }, [user])
+    }, [user?.id])
 
     return (
         <div>
