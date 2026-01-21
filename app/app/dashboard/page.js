@@ -311,7 +311,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Days Trained Tile */}
-                        <Link href="/app/workouts" style={{ textDecoration: 'none' }}>
+                        <Link href="/app/workouts?filter=completed" style={{ textDecoration: 'none' }}>
                             <div className="card" style={{
                                 cursor: 'pointer',
                                 transition: 'transform 0.2s',
@@ -332,7 +332,7 @@ export default function Dashboard() {
                         </Link>
 
                         {/* Scheduled Workouts Tile */}
-                        <Link href="/app/workouts" style={{ textDecoration: 'none' }}>
+                        <Link href="/app/workouts?filter=future" style={{ textDecoration: 'none' }}>
                             <div className="card" style={{
                                 cursor: 'pointer',
                                 transition: 'transform 0.2s',

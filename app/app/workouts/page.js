@@ -4,30 +4,64 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../components/AuthProvider'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function WorkoutsPage() {
+function WorkoutsContent() {
     const { user } = useAuth()
+    const searchParams = useSearchParams()
+    const filter = searchParams.get('filter')
     const [sessions, setSessions] = useState([])
 
     useEffect(() => {
         if (user) {
+            console.log('Filtering workouts with:', filter)
             const fetchSessions = async () => {
-                const { data } = await supabase
+                let query = supabase
                     .from('workout_sessions')
                     .select('*, workout_logs(*)')
                     .eq('user_id', user.id)
-                    .order('session_date', { ascending: false })
 
-                if (data) setSessions(data)
+                const today = new Date().toISOString().split('T')[0]
+                console.log('Comparison Date (Today):', today)
+
+                if (filter === 'future') {
+                    console.log('Applying FUTURE filter')
+                    query = query.gt('session_date', today)
+                } else if (filter === 'completed') {
+                    console.log('Applying COMPLETED filter')
+                    query = query.lte('session_date', today)
+                }
+
+                const { data, error } = await query.order('session_date', { ascending: false })
+
+                if (error) console.error('Supabase Error:', error)
+                if (data) {
+                    console.log(`Fetched ${data.length} sessions`)
+                    setSessions(data)
+                }
             }
             fetchSessions()
         }
-    }, [user?.id])
+    }, [user?.id, filter])
+
+    const getTitle = () => {
+        if (filter === 'future') return 'Upcoming Workouts'
+        if (filter === 'completed') return 'Completed Workouts'
+        return 'My Workouts'
+    }
 
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h1>My Workouts</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {(filter === 'future' || filter === 'completed') && (
+                        <Link href="/app/dashboard" style={{ textDecoration: 'none', color: 'var(--secondary)', fontSize: '1.5rem' }}>
+                            &larr;
+                        </Link>
+                    )}
+                    <h1>{getTitle()} (Debug: {filter || 'None'})</h1>
+                </div>
                 <Link href="/app/workouts/log" className="btn">
                     Log Workout
                 </Link>
@@ -53,6 +87,19 @@ export default function WorkoutsPage() {
                     </Link>
                 ))}
             </div>
+            {sessions.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--secondary)' }}>
+                    {filter === 'future' ? 'No upcoming workouts scheduled.' : 'No workouts found.'}
+                </div>
+            )}
         </div>
+    )
+}
+
+export default function WorkoutsPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <WorkoutsContent />
+        </Suspense>
     )
 }
