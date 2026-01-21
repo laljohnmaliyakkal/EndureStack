@@ -60,7 +60,7 @@ function WorkoutsContent() {
                             &larr;
                         </Link>
                     )}
-                    <h1>{getTitle()} (Debug: {filter || 'None'})</h1>
+                    <h1>{getTitle()}</h1>
                 </div>
                 <Link href="/app/workouts/log" className="btn">
                     Log Workout
