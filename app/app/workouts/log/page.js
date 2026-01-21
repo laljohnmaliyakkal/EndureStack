@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense, useMemo } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { useAuth } from '../../../../components/AuthProvider'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Modal from '../../../../components/Modal'
+import AddExerciseModal from './AddExerciseModal'
 
 function Logger() {
     const { user } = useAuth()
@@ -29,6 +31,10 @@ function Logger() {
     const [weight, setWeight] = useState(0)
     const [setNumber, setSetNumber] = useState(1)
 
+    // Delete Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [logToDelete, setLogToDelete] = useState(null)
+
     // Fetch Workouts Catalog
     useEffect(() => {
         const fetchCatalog = async () => {
@@ -41,6 +47,36 @@ function Logger() {
         }
         fetchCatalog()
     }, [])
+
+    // Add Exercise Logic
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+
+    const handleAddExercise = async ({ name, muscle_group }) => {
+        const { data, error } = await supabase
+            .from('workouts')
+            .insert([{ name, muscle_group }])
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Error adding exercise:', error)
+            alert('Error adding exercise: ' + error.message)
+        } else {
+            console.log('Exercise added:', data)
+            // Update local state
+            setAvailableWorkouts(prev => [...prev, data])
+
+            // If the muscle group wasn't in our list (e.g. custom), add it
+            if (!muscleGroups.includes(muscle_group)) {
+                setMuscleGroups(prev => [...prev, muscle_group].sort())
+            }
+
+            // Auto select
+            setSelectedMuscle(muscle_group)
+            setSelectedExercise(name)
+            setIsAddModalOpen(false)
+        }
+    }
 
     // Filter exercises based on muscle group
     const filteredExercises = useMemo(() => {
@@ -104,22 +140,50 @@ function Logger() {
                 setSessionId(currentSessionId)
             }
 
-            // Add Log
-            const { error: logError } = await supabase
-                .from('workout_logs')
-                .insert([{
+            // Check if exercise already has logs in this session
+            // logs state is from the beginning of this render cycle, which is correct for this check
+            const existingLogs = logs.filter(l => l.workout_name === selectedExercise)
+            const isFirstTime = existingLogs.length === 0
+
+            const setsToInsert = []
+
+            // Only add 3 sets if it's the first time AND NOT Cardio
+            if (isFirstTime && selectedMuscle !== 'Cardio') {
+                // Add 3 sets
+                for (let i = 1; i <= 3; i++) {
+                    setsToInsert.push({
+                        session_id: currentSessionId,
+                        workout_name: selectedExercise,
+                        set_number: i,
+                        reps: parseInt(reps),
+                        weight: parseFloat(weight),
+                        updated_by: user.id
+                    })
+                }
+            } else {
+                // Add single next set
+                const maxSet = existingLogs.reduce((max, log) => (log.set_number > max ? log.set_number : max), 0)
+                setsToInsert.push({
                     session_id: currentSessionId,
                     workout_name: selectedExercise,
-                    set_number: setNumber,
+                    set_number: maxSet + 1,
                     reps: parseInt(reps),
                     weight: parseFloat(weight),
                     updated_by: user.id
-                }])
+                })
+            }
+
+            // Perform Insert
+            const { error: logError } = await supabase
+                .from('workout_logs')
+                .insert(setsToInsert)
 
             if (logError) throw logError
 
-            // Don't reset exercise so they can log next set easily
-            setSetNumber(prev => prev + 1)
+            // Determine what the next set number would be for valid UI state
+            const lastInsertedSet = setsToInsert[setsToInsert.length - 1].set_number
+            setSetNumber(lastInsertedSet + 1)
+
             fetchLogs(currentSessionId)
         } catch (err) {
             alert('Error logging set: ' + err.message)
@@ -131,13 +195,18 @@ function Logger() {
     const [editingLog, setEditingLog] = useState(null)
     const [editValues, setEditValues] = useState({ weight: '', reps: '' })
 
-    const handleDelete = async (logId) => {
-        if (!confirm('Are you sure you want to delete this set?')) return
+    const handleDelete = (logId) => {
+        setLogToDelete(logId)
+        setIsDeleteModalOpen(true)
+    }
+
+    const confirmDelete = async () => {
+        if (!logToDelete) return
 
         const { error } = await supabase
             .from('workout_logs')
             .delete()
-            .eq('id', logId)
+            .eq('id', logToDelete)
 
         if (error) {
             alert('Error deleting log')
@@ -145,6 +214,8 @@ function Logger() {
         } else {
             fetchLogs(sessionId)
         }
+        setIsDeleteModalOpen(false)
+        setLogToDelete(null)
     }
 
     const startEdit = (log) => {
@@ -219,7 +290,23 @@ function Logger() {
                             </select>
                         </div>
                         <div>
-                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Exercise</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'block' }}>Exercise</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--primary)',
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline'
+                                    }}
+                                >
+                                    + Add New
+                                </button>
+                            </div>
                             <select
                                 className="input"
                                 value={selectedExercise}
@@ -338,7 +425,41 @@ function Logger() {
                     </div>
                 ))}
             </div>
-        </div>
+
+
+            <AddExerciseModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onAdd={handleAddExercise}
+                preselectedMuscle={selectedMuscle}
+            />
+
+            <Modal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                title="Confirm Delete"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                        <button
+                            onClick={() => setIsDeleteModalOpen(false)}
+                            className="btn"
+                            style={{ background: 'var(--secondary)', color: 'white' }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={confirmDelete}
+                            className="btn"
+                            style={{ background: 'var(--danger)', color: 'white' }}
+                        >
+                            Delete
+                        </button>
+                    </div>
+                }
+            >
+                <p>Are you sure you want to delete this set? This action cannot be undone.</p>
+            </Modal>
+        </div >
     )
 }
 

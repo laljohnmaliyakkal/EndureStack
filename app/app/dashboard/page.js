@@ -15,6 +15,7 @@ export default function Dashboard() {
         daysTrained: 0,
         trainer: null
     })
+    const [trainerStats, setTrainerStats] = useState([])
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -61,6 +62,17 @@ export default function Dashboard() {
                             trainers: trainerCount || 0,
                             clients: clientCount || 0
                         }))
+
+                        // 4. Fetch Trainer Performance Stats
+                        const { data: perfStats, error: perfError } = await supabase
+                            .rpc('get_trainer_stats', { target_gym_id: gymIds[0] })
+
+                        if (perfStats) {
+                            setTrainerStats(perfStats)
+                        } else if (perfError) {
+                            console.error('Error fetching trainer stats:', perfError)
+                        }
+
                     } else {
                         setStats(prev => ({ ...prev, gyms: 0, gymName: '', trainers: 0, clients: 0 }))
                     }
@@ -180,7 +192,7 @@ export default function Dashboard() {
         }
 
         fetchStats()
-    }, [profile, user])
+    }, [profile?.role, user?.id])
 
     if (!profile) return <div>Loading profile...</div>
 
@@ -191,10 +203,12 @@ export default function Dashboard() {
             <div className="card">
                 <h2 style={{ marginBottom: '1rem' }}>Dashboard - {profile.role?.toUpperCase()}</h2>
 
+
+
                 {profile.role === 'admin' && (
                     <div>
                         <p style={{ marginBottom: '1rem' }}>Manage your gyms and crew here.</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                             <div className="card" style={{ padding: '1.5rem' }}>
                                 <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>Gym</h3>
                                 <p style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{stats.gymName || 'N/A'}</p>
@@ -211,6 +225,40 @@ export default function Dashboard() {
                                     <p style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{stats.clients}</p>
                                 </div>
                             </Link>
+                        </div>
+
+                        {/* Trainer Performance Tile */}
+                        <div className="card">
+                            <h3 style={{ marginBottom: '1rem' }}>Trainer Performance (Sessions)</h3>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                                    <thead>
+                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', color: 'var(--secondary)' }}>
+                                            <th style={{ padding: '0.75rem' }}>Trainer</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'center' }}>Today</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'center' }}>7 Days</th>
+                                            <th style={{ padding: '0.75rem', textAlign: 'center' }}>30 Days</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {trainerStats.map((t, i) => (
+                                            <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                <td style={{ padding: '0.75rem', fontWeight: '500' }}>{t.trainer_name}</td>
+                                                <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: t.sessions_today > 0 ? 'var(--success)' : 'inherit' }}>{t.sessions_today}</td>
+                                                <td style={{ padding: '0.75rem', textAlign: 'center' }}>{t.sessions_week}</td>
+                                                <td style={{ padding: '0.75rem', textAlign: 'center' }}>{t.sessions_month}</td>
+                                            </tr>
+                                        ))}
+                                        {trainerStats.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--secondary)' }}>
+                                                    No session data found for your trainers.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 )}
