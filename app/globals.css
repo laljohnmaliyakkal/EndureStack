@@ -227,6 +227,66 @@ label {
   }
 }
 
+/* Mobile Tabs */
+.mobile-nav-tabs {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav-tabs {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 1rem;
+    padding-bottom: 0.5rem;
+    border-top: 1px solid var(--border);
+    margin-top: 1rem;
+    gap: 0.5rem;
+    overflow-x: auto;
+    /* Allow scrolling if many tabs */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Main nav container adjustments for mobile */
+  .nav-container {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-nav-tabs {
+    width: 100%;
+    /* Force new line */
+    order: 3;
+  }
+
+  .mobile-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--secondary);
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    min-width: 60px;
+    flex: 1;
+  }
+
+  .mobile-tab.active {
+    color: var(--primary);
+    background-color: rgba(255, 112, 81, 0.1);
+  }
+
+  .mobile-tab svg {
+    margin-bottom: 2px;
+  }
+}
+
 /* Grids */
 .workout-details-grid {
   display: grid;
@@ -361,9 +421,5 @@ label {
 @media (max-width: 640px) {
   .log-form-grid {
     grid-template-columns: 1fr;
-  }
-
-  .log-input-group {
-    /* flex-direction: column;  Kept row for now as reps/weight are small inputs */
   }
 }
