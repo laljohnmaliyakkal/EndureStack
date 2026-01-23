@@ -12,13 +12,19 @@ export default function AppLayout({ children }) {
 
     useEffect(() => {
         if (!loading) {
+            // detailed profile info (like age/height/weight) is missing, we consider it incomplete.
+            // We use 'age' as a proxy for completeness.
+            const isProfileComplete = profile && profile.age;
+
             if (!user) {
                 router.push('/auth/login')
-            } else if (!profile && pathname !== '/app/complete-profile') {
-                router.push('/app/complete-profile')
-            } else if (profile && pathname === '/app/complete-profile') {
-                router.push('/app/dashboard')
+            } else if ((!profile || !isProfileComplete) && pathname !== '/app/profile') {
+                router.push('/app/profile?first_time=true')
             }
+            // Existing profile check: If they are on profile page but have a profile, 
+            // we let them stay there (it's the edit profile page).
+            // Logic to redirect FROM profile TO dashboard on completion 
+            // is now handled inside the Profile page component itself.
         }
     }, [user, profile, loading, router, pathname])
 
@@ -40,8 +46,7 @@ export default function AppLayout({ children }) {
         return null // Will redirect
     }
 
-    // Don't show Navbar on complete-profile page if you want to restrict navigation, 
-    // or keep it but maybe hide links. For now, we will hide Navbar if no profile.
+    // Don't show Navbar if no profile (onboard mode)
     const showNavbar = profile !== null
 
     return (

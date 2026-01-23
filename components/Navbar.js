@@ -19,10 +19,10 @@ export default function Navbar() {
         <nav style={{
             backgroundColor: 'var(--card-bg)',
             borderBottom: '1px solid var(--border)',
-            padding: '1rem',
+            padding: '1rem 0',
             marginBottom: '2rem'
         }}>
-            <div className="container nav-container">
+            <div className="container nav-container" style={{ marginBottom: 0, paddingBottom: 0 }}>
                 <Link href="/app/dashboard" style={{ fontSize: '1.5rem', fontWeight: 'bold' }} onClick={closeMenu}>
                     Endure<span style={{ color: 'var(--primary)' }}>Stack</span>
                 </Link>
@@ -73,6 +73,80 @@ export default function Navbar() {
                         Sign Out
                     </button>
                 </div>
+            </div>
+
+            {/* Mobile Tabs */}
+            <div className="mobile-nav-tabs">
+                <Link href="/app/dashboard" className={`mobile-tab ${pathname === '/app/dashboard' ? 'active' : ''}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Home</span>
+                </Link>
+
+                {profile?.role === 'user' && (
+                    <>
+                        <Link href="/app/workouts" className={`mobile-tab ${pathname.includes('/app/workouts') ? 'active' : ''}`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6.5 6.5l5 5 M17.5 17.5l-5-5 M6.5 6.5l-3 3 M17.5 17.5l3-3 M3.5 9.5l4-4 M20.5 14.5l-4 4" />
+                                <rect x="2" y="15" width="20" height="4" rx="2" transform="rotate(-45 12 17)" />
+                                <path d="M2 17L17 2" strokeWidth="2.5" />
+                                {/* Simple Dumbbell approximation */}
+                                <path d="M6.3 7.8l8 8 M5 5l2 2 M17 17l2 2" strokeWidth="5" strokeLinecap="round" />
+                                <circle cx="5" cy="5" r="3" />
+                                <circle cx="19" cy="19" r="3" />
+                            </svg>
+                            <span>Workouts</span>
+                        </Link>
+                        <Link href="/app/nutrition" className={`mobile-tab ${pathname.includes('/app/nutrition') ? 'active' : ''}`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2C7.5 2 4 6.5 4 6.5C4 6.5 4 12 8 16C12 20 17 21 19.5 21C20.5 21 21 20 21 19C21 16.5 21 12 18 8" />
+                                <path d="M12 2L16 6" />
+                            </svg>
+                            <span>Diet</span>
+                        </Link>
+                        <Link href="/app/progress" className={`mobile-tab ${pathname.includes('/app/progress') ? 'active' : ''}`}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
+                            <span>Progress</span>
+                        </Link>
+                    </>
+                )}
+
+                {profile?.role === 'trainer' && (
+                    <Link href="/app/trainer/users" className={`mobile-tab ${pathname.includes('/app/trainer') ? 'active' : ''}`}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>Clients</span>
+                    </Link>
+                )}
+
+                {profile?.role === 'admin' && (
+                    <Link href="/app/admin/users" className={`mobile-tab ${pathname.includes('/app/admin') ? 'active' : ''}`}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <span>Crew</span>
+                    </Link>
+                )}
+
+                <Link href="/app/profile" className={`mobile-tab ${pathname === '/app/profile' ? 'active' : ''}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>Profile</span>
+                </Link>
             </div>
         </nav>
     )

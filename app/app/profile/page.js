@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 export default function Profile() {
     const { profile, user, refreshProfile } = useAuth()
@@ -25,6 +25,7 @@ export default function Profile() {
 
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
+    const router = useRouter() // Import added implicitly if not present, wait I need to check imports.
 
     useEffect(() => {
         if (searchParams.get('first_time')) {
@@ -71,27 +72,47 @@ export default function Profile() {
                         setGymSearch(myGym.name + ', ' + myGym.address)
                     }
                 }
+            } else if (user) {
+                // Fallback for new users (no profile yet)
+                setFormData(prev => ({
+                    ...prev,
+                    full_name: user?.user_metadata?.full_name || prev.full_name
+                }))
             }
         }
         initData()
-    }, [profile])
-
+    }, [profile, user])
 
     const handleUpdate = async (e) => {
         e.preventDefault()
         setLoading(true)
         setMessage('')
 
+        // Check if the user was incomplete before this update
+        // We use this to decide if we should redirect to dashboard (onboarding flow)
+        const wasIncomplete = !profile || !profile.age || searchParams.get('first_time');
+
         try {
+            // Using upsert instead of update to handle both creation and editing
             const { error } = await supabase
                 .from('profiles')
-                .update(formData)
-                .eq('user_id', user.id)
+                .upsert({
+                    user_id: user.id,
+                    ...formData
+                })
+                .select()
+                .single()
 
             if (error) throw error
 
             await refreshProfile()
-            setMessage('Profile updated successfully!')
+
+            // If this was an onboarding flow, redirect to dashboard
+            if (wasIncomplete) {
+                router.push('/app/dashboard')
+            } else {
+                setMessage('Profile updated successfully!')
+            }
         } catch (err) {
             setMessage('Error updating profile: ' + err.message)
         } finally {
