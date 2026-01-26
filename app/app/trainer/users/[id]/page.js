@@ -23,11 +23,8 @@ export default function ClientProfilePage({ params }) {
     const [transferLoading, setTransferLoading] = useState(false)
     const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' })
 
-    // Plan Assignment State
-    const [plans, setPlans] = useState([])
-    const [isAssignPlanModalOpen, setIsAssignPlanModalOpen] = useState(false)
-    const [selectedPlan, setSelectedPlan] = useState('')
-    const [assignLoading, setAssignLoading] = useState(false)
+    // Plan Assignment State - REMOVED
+
 
 
     useEffect(() => {
@@ -59,14 +56,7 @@ export default function ClientProfilePage({ params }) {
                 if (trainersData) setTrainers(trainersData)
             }
 
-            // 3. Fetch Available Plans (Public or Created by this Trainer)
-            const { data: plansData } = await supabase
-                .from('workout_plans')
-                .select('id, name, is_public')
-                .or(`is_public.eq.true,created_by.eq.${user.id}`)
-                .order('name')
-
-            if (plansData) setPlans(plansData)
+            // 3. Fetch Available Plans - REMOVED
 
             setLoading(false)
         }
@@ -74,46 +64,7 @@ export default function ClientProfilePage({ params }) {
         fetchData()
     }, [id, user, profile])
 
-    const handleAssignPlan = async () => {
-        if (!selectedPlan) return
-        setAssignLoading(true)
 
-        try {
-            // 1. Deactivate existing plans
-            await supabase
-                .from('user_plans')
-                .update({ is_active: false })
-                .eq('user_id', id)
-
-            // 2. Assign new plan
-            const { error } = await supabase
-                .from('user_plans')
-                .insert({
-                    user_id: id,
-                    plan_id: selectedPlan,
-                    assigned_by: user.id,
-                    is_active: true,
-                    start_date: new Date().toISOString().split('T')[0]
-                })
-
-            if (error) throw error
-
-            setAlertModal({
-                isOpen: true,
-                title: 'Success',
-                message: 'Workout plan assigned successfully!',
-                onClose: () => setIsAssignPlanModalOpen(false)
-            })
-        } catch (error) {
-            setAlertModal({
-                isOpen: true,
-                title: 'Error',
-                message: 'Failed to assign plan: ' + error.message
-            })
-        } finally {
-            setAssignLoading(false)
-        }
-    }
 
     const handleTransfer = async () => {
         if (!selectedTrainer) return
@@ -254,17 +205,7 @@ export default function ClientProfilePage({ params }) {
                     </div>
                 </div>
 
-                <button
-                    onClick={() => setIsAssignPlanModalOpen(true)}
-                    className="btn"
-                    style={{ backgroundColor: 'var(--primary)', flex: '1 1 auto', textAlign: 'center' }}
-                >
-                    Assign Plan
-                </button>
 
-                <Link href={`/app/nutrition?userId=${id}`} className="btn" style={{ backgroundColor: '#059669', textDecoration: 'none', textAlign: 'center' }}>
-                    View Diet
-                </Link>
 
                 <button
                     onClick={() => setIsTransferModalOpen(true)}
@@ -276,51 +217,7 @@ export default function ClientProfilePage({ params }) {
             </div>
 
 
-            {/* Assign Plan Modal */}
-            <Modal
-                isOpen={isAssignPlanModalOpen}
-                onClose={() => setIsAssignPlanModalOpen(false)}
-                title="Assign Workout Plan"
-                footer={
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', width: '100%' }}>
-                        <button
-                            onClick={() => setIsAssignPlanModalOpen(false)}
-                            className="btn"
-                            style={{ backgroundColor: 'var(--secondary)' }}
-                            disabled={assignLoading}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleAssignPlan}
-                            className="btn"
-                            disabled={!selectedPlan || assignLoading}
-                        >
-                            {assignLoading ? 'Assigning...' : 'Assign Plan'}
-                        </button>
-                    </div>
-                }
-            >
-                <p style={{ marginBottom: '1.5rem', color: 'var(--secondary)' }}>
-                    Select a workout plan to assign to <strong>{client.full_name}</strong>. This will replace their currently active plan.
-                </p>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Workout Plan</label>
-                    <select
-                        className="input"
-                        value={selectedPlan}
-                        onChange={e => setSelectedPlan(e.target.value)}
-                    >
-                        <option value="">Select a plan...</option>
-                        {plans.map(p => (
-                            <option key={p.id} value={p.id}>
-                                {p.name} {p.is_public ? '(Public)' : ''}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            </Modal>
 
             {/* Transfer Modal */}
             <Modal

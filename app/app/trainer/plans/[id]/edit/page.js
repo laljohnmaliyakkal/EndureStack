@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../../../../lib/supabase'
-import { useAuth } from '../../../../../components/AuthProvider'
-import ConfirmModal from '../../../../../components/ConfirmModal'
+import { supabase } from '../../../../../../lib/supabase'
+import { useAuth } from '../../../../../../components/AuthProvider'
+import ConfirmModal from '../../../../../../components/ConfirmModal'
 
 const DAYS = [
     { number: 1, name: 'Day 1' },
@@ -15,22 +15,34 @@ const DAYS = [
     { number: 6, name: 'Day 6' },
 ]
 
-export default function CreatePlanPage() {
+export default function EditPlanPage({ params }) {
+    const resolvedParams = use(params)
+    const id = resolvedParams.id
+
     const { user } = useAuth()
     const router = useRouter()
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [submitting, setSubmitting] = useState(false)
+    const [isCloneMode, setIsCloneMode] = useState(false)
     const [planData, setPlanData] = useState({
         name: '',
         description: '',
         is_public: false
     })
-    const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '' })
+    const [alertState, setAlertState] = useState({ isOpen: false, title: '', message: '', onClose: null })
 
     // Existing workouts catalog
     const [catalog, setCatalog] = useState([])
     const [muscleGroups, setMuscleGroups] = useState([])
 
+    // Structure: { [dayNumber]: [{ workout_name, sets, reps, muscle_group }] }
+    // Initialize with empty arrays
+    const [dayExercises, setDayExercises] = useState({
+        1: [], 2: [], 3: [], 4: [], 5: [], 6: []
+    })
+
     useEffect(() => {
+        // Fetch Catalog
         const fetchCatalog = async () => {
             const { data } = await supabase.from('workouts').select('name, muscle_group').order('name')
             if (data) {
@@ -42,10 +54,73 @@ export default function CreatePlanPage() {
         fetchCatalog()
     }, [])
 
-    // Structure: { [dayNumber]: [{ workout_name, sets, reps, muscle_group }] }
-    const [dayExercises, setDayExercises] = useState({
-        1: [], 2: [], 3: [], 4: [], 5: [], 6: []
-    })
+    useEffect(() => {
+        if (user && id) {
+            fetchPlan()
+        }
+    }, [user, id])
+
+    const fetchPlan = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('workout_plans')
+                .select(`
+                    *,
+                    workout_plan_days (
+                        *,
+                        workout_plan_items (*)
+                    )
+                `)
+                .eq('id', id)
+                .single()
+
+            if (error) throw error
+
+            setPlanData({
+                name: data.name,
+                description: data.description || '',
+                is_public: data.is_public
+            })
+
+            // If public, enable Clone Mode
+            if (data.is_public) {
+                setIsCloneMode(true)
+                // Optional: Append (Copy) to name? User asked to allow providing a name.
+                // leaving original name is fine, user can change it.
+            }
+
+            // Populate exercises
+            const loadedExercises = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
+
+            if (data.workout_plan_days) {
+                data.workout_plan_days.forEach(day => {
+                    if (loadedExercises[day.day_number] && day.workout_plan_items) {
+                        // Sort items by order_index
+                        const sortedItems = day.workout_plan_items.sort((a, b) => a.order_index - b.order_index)
+
+                        loadedExercises[day.day_number] = sortedItems.map(item => ({
+                            workout_name: item.workout_name,
+                            sets: item.sets,
+                            reps: item.reps,
+                            muscle_group: item.muscle_group || ''
+                        }))
+                    }
+                })
+            }
+
+            setDayExercises(loadedExercises)
+        } catch (error) {
+            console.error('Error fetching plan:', error)
+            setAlertState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error loading plan',
+                onClose: () => router.push('/app/trainer/plans')
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
 
     const handleAddExercise = (dayNumber) => {
         setDayExercises(prev => ({
@@ -57,12 +132,6 @@ export default function CreatePlanPage() {
     const handleExerciseChange = (dayNumber, index, field, value) => {
         const newExercises = [...dayExercises[dayNumber]]
         newExercises[index] = { ...newExercises[index], [field]: value }
-
-        // If changing muscle group, clear exercise name if it doesn't match new group? 
-        // Or keep it? Let's keep it but it might be invalid. 
-        // Actually, better to reset name if muscle group changes to force re-select? 
-        // Maybe user wants to keep it. Let's not clear for now, just filter suggestions.
-
         setDayExercises(prev => ({
             ...prev,
             [dayNumber]: newExercises
@@ -82,84 +151,155 @@ export default function CreatePlanPage() {
         }))
     }
 
-    // ... handleSubmit remains mostly the same, muscle_group is strictly UI state here
-
     const handleSubmit = async (e) => {
         e.preventDefault()
         if (!user) return
-        setLoading(true)
+        setSubmitting(true)
 
         try {
-            // 1. Create Plan
-            const { data: plan, error: planError } = await supabase
-                .from('workout_plans')
-                .insert({
-                    name: planData.name,
-                    description: planData.description,
-                    created_by: user.id,
-                    is_public: planData.is_public
-                })
-                .select()
-                .single()
-
-            if (planError) throw planError
-
-            // 2. Create Days and Items using Promise.all for parallelism
-            const dayPromises = DAYS.map(async (day) => {
-                const exercises = dayExercises[day.number]
-                if (exercises.length === 0) return
-
-                // Create Day
-                const { data: dayData, error: dayError } = await supabase
-                    .from('workout_plan_days')
+            if (isCloneMode) {
+                // CLONE LOGIC: Create NEW Plan
+                const { data: newPlan, error: planError } = await supabase
+                    .from('workout_plans')
                     .insert({
-                        plan_id: plan.id,
-                        day_number: day.number,
-                        day_name: day.name
+                        name: planData.name,
+                        description: planData.description,
+                        is_public: false, // Copies start as private
+                        created_by: user.id
                     })
                     .select()
                     .single()
 
-                if (dayError) throw dayError
+                if (planError) throw planError
 
-                // Create Items
-                const itemsToInsert = exercises.map((ex, idx) => ({
-                    plan_day_id: dayData.id,
-                    workout_name: ex.workout_name,
-                    muscle_group: ex.muscle_group,
-                    sets: parseInt(ex.sets),
-                    reps: parseInt(ex.reps),
-                    order_index: idx
-                }))
+                // 2. Create Days and Items (Re-used logic, but targetting newPlan.id)
+                const dayPromises = DAYS.map(async (day) => {
+                    const exercises = dayExercises[day.number]
+                    if (exercises.length === 0) return
 
-                if (itemsToInsert.length > 0) {
-                    const { error: itemsError } = await supabase
-                        .from('workout_plan_items')
-                        .insert(itemsToInsert)
+                    const { data: dayData, error: dayError } = await supabase
+                        .from('workout_plan_days')
+                        .insert({
+                            plan_id: newPlan.id,
+                            day_number: day.number,
+                            day_name: day.name
+                        })
+                        .select()
+                        .single()
 
-                    if (itemsError) throw itemsError
-                }
-            })
+                    if (dayError) throw dayError
 
-            await Promise.all(dayPromises)
+                    const itemsToInsert = exercises.map((ex, idx) => ({
+                        plan_day_id: dayData.id,
+                        workout_name: ex.workout_name,
+                        muscle_group: ex.muscle_group,
+                        sets: parseInt(ex.sets),
+                        reps: parseInt(ex.reps),
+                        order_index: idx
+                    }))
 
-            router.push('/app/trainer/plans')
-            router.refresh()
+                    if (itemsToInsert.length > 0) {
+                        const { error: itemsError } = await supabase
+                            .from('workout_plan_items')
+                            .insert(itemsToInsert)
+                        if (itemsError) throw itemsError
+                    }
+                })
+
+                await Promise.all(dayPromises)
+
+                router.push('/app/trainer/plans')
+                router.refresh()
+
+            } else {
+                // UPDATE LOGIC (Existing)
+                // 1. Update Plan Details
+                const { error: planError } = await supabase
+                    .from('workout_plans')
+                    .update({
+                        name: planData.name,
+                        description: planData.description,
+                        is_public: planData.is_public
+                    })
+                    .eq('id', id)
+
+                if (planError) throw planError
+
+                // 2. Delete existing days (cascade deletes items)
+                const { error: deleteError } = await supabase
+                    .from('workout_plan_days')
+                    .delete()
+                    .eq('plan_id', id)
+
+                if (deleteError) throw deleteError
+
+                // 3. Re-create Days and Items
+                const dayPromises = DAYS.map(async (day) => {
+                    const exercises = dayExercises[day.number]
+                    if (exercises.length === 0) return
+
+                    // Create Day
+                    const { data: dayData, error: dayError } = await supabase
+                        .from('workout_plan_days')
+                        .insert({
+                            plan_id: id,
+                            day_number: day.number,
+                            day_name: day.name
+                        })
+                        .select()
+                        .single()
+
+                    if (dayError) throw dayError
+
+                    // Create Items
+                    const itemsToInsert = exercises.map((ex, idx) => ({
+                        plan_day_id: dayData.id,
+                        workout_name: ex.workout_name,
+                        muscle_group: ex.muscle_group,
+                        sets: parseInt(ex.sets),
+                        reps: parseInt(ex.reps),
+                        order_index: idx
+                    }))
+
+                    if (itemsToInsert.length > 0) {
+                        const { error: itemsError } = await supabase
+                            .from('workout_plan_items')
+                            .insert(itemsToInsert)
+
+                        if (itemsError) throw itemsError
+                    }
+                })
+
+                await Promise.all(dayPromises)
+
+                router.push('/app/trainer/plans')
+                router.refresh()
+            }
         } catch (error) {
-            console.error('Error creating plan:', error)
+            console.error('Error updating/cloning plan:', error)
             setAlertState({
                 isOpen: true,
                 title: 'Error',
-                message: 'Failed to create plan: ' + error.message
+                message: 'Failed to process plan: ' + error.message
             })
         } finally {
-            setLoading(false)
+            setSubmitting(false)
         }
     }
 
+    if (loading) return <div style={{ padding: '2rem' }}>Loading...</div>
+
     return (
         <div style={{ padding: '1rem', maxWidth: '800px', margin: '0 auto', paddingBottom: '4rem' }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem' }}>Create New Plan</h1>
+            <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '2rem' }}>
+                {isCloneMode ? 'Create Copy of Public Plan' : 'Edit Plan'}
+            </h1>
+
+            {isCloneMode && (
+                <div style={{ padding: '1rem', backgroundColor: 'rgba(var(--primary-rgb), 0.1)', border: '1px solid var(--primary)', borderRadius: '8px', marginBottom: '2rem', color: 'var(--primary)' }}>
+                    <strong>Note:</strong> You are editing a public plan. Changes will be saved as a new copy, and the original public plan will remain unchanged.
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '2rem' }}>
                 <div className="card" style={{ padding: '1.5rem', display: 'grid', gap: '1rem' }}>
@@ -171,7 +311,6 @@ export default function CreatePlanPage() {
                             value={planData.name}
                             onChange={(e) => setPlanData({ ...planData, name: e.target.value })}
                             required
-                            placeholder="e.g., Summer Shred 2026"
                         />
                     </div>
                     <div>
@@ -181,7 +320,6 @@ export default function CreatePlanPage() {
                             value={planData.description}
                             onChange={(e) => setPlanData({ ...planData, description: e.target.value })}
                             rows={3}
-                            placeholder="Brief description of the plan..."
                         />
                     </div>
                 </div>
@@ -292,10 +430,10 @@ export default function CreatePlanPage() {
                     <button
                         type="submit"
                         className="btn"
-                        disabled={loading}
+                        disabled={submitting}
                         style={{ width: '100%', padding: '1rem', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
                     >
-                        {loading ? 'Creating Plan...' : 'Save Workout Plan'}
+                        {submitting ? 'Saving...' : (isCloneMode ? 'Save as New Plan' : 'Update Workout Plan')}
                     </button>
                 </div>
             </form>
@@ -322,7 +460,10 @@ export default function CreatePlanPage() {
             `}</style>
             <ConfirmModal
                 isOpen={alertState.isOpen}
-                onClose={() => setAlertState({ ...alertState, isOpen: false })}
+                onClose={() => {
+                    setAlertState({ ...alertState, isOpen: false })
+                    if (alertState.onClose) alertState.onClose()
+                }}
                 title={alertState.title}
                 message={alertState.message}
                 isAlert={true}

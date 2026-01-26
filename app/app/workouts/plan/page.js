@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { useAuth } from '../../../../components/AuthProvider'
+import { useRouter } from 'next/navigation'
+import ConfirmModal from '../../../../components/ConfirmModal'
 
 export default function UserPlanPage() {
     const { user } = useAuth()
+    const router = useRouter()
     const [activePlan, setActivePlan] = useState(null)
     const [availablePlans, setAvailablePlans] = useState([])
     const [loading, setLoading] = useState(true)
     const [expandingDay, setExpandingDay] = useState(null)
+    const [assignedByName, setAssignedByName] = useState(null)
+    const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isAlert: false })
 
     useEffect(() => {
         if (user) {
@@ -25,6 +30,7 @@ export default function UserPlanPage() {
                 .select(`
                     id, 
                     start_date,
+                    assigned_by,
                     workout_plans (
                         id, name, description,
                         workout_plan_days (
@@ -49,6 +55,14 @@ export default function UserPlanPage() {
                         }
                     })
                 }
+                if (userPlan.assigned_by) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('full_name')
+                        .eq('user_id', userPlan.assigned_by)
+                        .single()
+                    if (profile) setAssignedByName(profile.full_name)
+                }
                 setActivePlan(userPlan)
             } else {
                 // 2. Fetch public plans if no active plan
@@ -67,8 +81,16 @@ export default function UserPlanPage() {
         }
     }
 
-    const handleSelectPlan = async (planId) => {
-        if (!confirm('Are you sure you want to start this plan?')) return
+    const handleSelectPlan = (planId) => {
+        setModalState({
+            isOpen: true,
+            title: 'Start Plan',
+            message: 'Are you sure you want to start this plan?',
+            onConfirm: () => executeSelectPlan(planId)
+        })
+    }
+
+    const executeSelectPlan = async (planId) => {
         setLoading(true)
         try {
             const { error } = await supabase
@@ -83,13 +105,26 @@ export default function UserPlanPage() {
             if (error) throw error
             fetchData() // Refresh to show the new active plan
         } catch (error) {
-            alert('Error starting plan: ' + error.message)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error starting plan: ' + error.message,
+                isAlert: true
+            })
             setLoading(false)
         }
     }
 
-    const handleLeavePlan = async () => {
-        if (!confirm('Are you sure you want to stop the current plan?')) return
+    const handleLeavePlan = () => {
+        setModalState({
+            isOpen: true,
+            title: 'Stop Plan',
+            message: 'Are you sure you want to stop the current plan?',
+            onConfirm: executeLeavePlan
+        })
+    }
+
+    const executeLeavePlan = async () => {
         setLoading(true)
         try {
             await supabase
@@ -101,7 +136,90 @@ export default function UserPlanPage() {
             setActivePlan(null)
             fetchData()
         } catch (error) {
-            alert('Error stopping plan: ' + error.message)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Error stopping plan: ' + error.message,
+                isAlert: true
+            })
+            setLoading(false)
+        }
+    }
+
+    const handleStartWorkout = (dayItems) => {
+        setModalState({
+            isOpen: true,
+            title: 'Start Workout',
+            message: 'Start this workout now? This will add these exercises to your daily log.',
+            onConfirm: () => executeStartWorkout(dayItems)
+        })
+    }
+
+    const executeStartWorkout = async (dayItems) => {
+        setLoading(true)
+        try {
+            const today = new Date().toISOString().split('T')[0]
+
+            // 1. Get or Create Session
+            let sessionId
+            const { data: existingSession, error: fetchError } = await supabase
+                .from('workout_sessions')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('session_date', today)
+                .single()
+
+            if (existingSession) {
+                sessionId = existingSession.id
+            } else {
+                const { data: newSession, error: createError } = await supabase
+                    .from('workout_sessions')
+                    .insert([{ user_id: user.id, session_date: today }])
+                    .select()
+                    .single()
+
+                if (createError) throw createError
+                sessionId = newSession.id
+            }
+
+            // 2. Prepare Logs
+            const logsToInsert = []
+            dayItems.forEach(item => {
+                const sets = item.sets || 3
+                const reps = item.reps || 10
+
+                for (let i = 1; i <= sets; i++) {
+                    logsToInsert.push({
+                        session_id: sessionId,
+                        workout_name: item.workout_name,
+                        set_number: i,
+                        reps: reps,
+                        weight: 0,
+                        updated_by: user.id
+                    })
+                }
+            })
+
+            // 3. Insert Logs
+            if (logsToInsert.length > 0) {
+                const { error: insertError } = await supabase
+                    .from('workout_logs')
+                    .insert(logsToInsert)
+
+                if (insertError) throw insertError
+            }
+
+            // 4. Redirect
+            router.push(`/app/workouts/log?userId=${user.id}&date=${today}`)
+
+        } catch (error) {
+            console.error('Error starting workout:', error)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to start workout: ' + error.message,
+                isAlert: true
+            })
             setLoading(false)
         }
     }
@@ -125,6 +243,11 @@ export default function UserPlanPage() {
                     <p style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.5rem' }}>
                         Started on {new Date(activePlan.start_date).toLocaleDateString()}
                     </p>
+                    {assignedByName && (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.25rem' }}>
+                            Assigned by {assignedByName}
+                        </p>
+                    )}
                 </div>
 
                 <h3 style={{ marginBottom: '1rem' }}>Weekly Schedule</h3>
@@ -148,8 +271,11 @@ export default function UserPlanPage() {
                                         </div>
                                     ))}
                                     <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-                                        {/* Future integration: Link to start a workout session pre-filled with these items */}
-                                        <button className="btn" style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }} onClick={() => alert('Start Workout feature coming soon!')}>
+                                        <button
+                                            className="btn"
+                                            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem' }}
+                                            onClick={() => handleStartWorkout(day.workout_plan_items)}
+                                        >
                                             Start Workout
                                         </button>
                                     </div>
@@ -158,6 +284,18 @@ export default function UserPlanPage() {
                         </div>
                     ))}
                 </div>
+
+                <ConfirmModal
+                    isOpen={modalState.isOpen}
+                    onClose={() => setModalState({ ...modalState, isOpen: false })}
+                    onConfirm={() => {
+                        if (modalState.onConfirm) modalState.onConfirm()
+                        setModalState({ ...modalState, isOpen: false })
+                    }}
+                    title={modalState.title}
+                    message={modalState.message}
+                    isAlert={modalState.isAlert}
+                />
             </div>
         )
     }
@@ -182,6 +320,19 @@ export default function UserPlanPage() {
                     </div>
                 ))}
             </div>
-        </div>
+
+
+            <ConfirmModal
+                isOpen={modalState.isOpen}
+                onClose={() => setModalState({ ...modalState, isOpen: false })}
+                onConfirm={() => {
+                    if (modalState.onConfirm) modalState.onConfirm()
+                    setModalState({ ...modalState, isOpen: false })
+                }}
+                title={modalState.title}
+                message={modalState.message}
+                isAlert={modalState.isAlert}
+            />
+        </div >
     )
 }
