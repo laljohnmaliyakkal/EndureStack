@@ -62,9 +62,14 @@ function WorkoutsContent() {
                     )}
                     <h1>{getTitle()}</h1>
                 </div>
-                <Link href="/app/workouts/log" className="btn">
-                    Log Workout
-                </Link>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <Link href="/app/workouts/plan" className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+                        My Plan
+                    </Link>
+                    <Link href="/app/workouts/log" className="btn">
+                        Log Workout
+                    </Link>
+                </div>
             </div>
 
             <div style={{ display: 'grid', gap: '1rem' }}>

@@ -81,7 +81,9 @@ function Logger() {
     // Filter exercises based on muscle group
     const filteredExercises = useMemo(() => {
         if (!selectedMuscle) return []
-        return availableWorkouts.filter(w => w.muscle_group === selectedMuscle)
+        return availableWorkouts
+            .filter(w => w.muscle_group === selectedMuscle)
+            .sort((a, b) => a.name.localeCompare(b.name))
     }, [selectedMuscle, availableWorkouts])
 
     // Fetch or Create Session
