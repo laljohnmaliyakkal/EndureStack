@@ -109,8 +109,8 @@ export default function NutritionPage() {
                 <div>
                     <h1>Diet Analysis</h1>
                     {isViewingClient && (
-                        <Link href={`/app/trainer/users/${targetUserId}`} style={{ fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none' }}>
-                            &larr; Back to Client Profile
+                        <Link href="/app/trainer/users" style={{ fontSize: '0.9rem', color: 'var(--primary)', textDecoration: 'none' }}>
+                            &larr; Back to Clients
                         </Link>
                     )}
                 </div>
