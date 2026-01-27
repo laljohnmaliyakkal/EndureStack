@@ -6,6 +6,7 @@ import { supabase } from '../../../../lib/supabase'
 import Link from 'next/link'
 import Modal from '../../../../components/Modal'
 import ConfirmModal from '../../../../components/ConfirmModal'
+import Avatar from '../../../../components/Avatar'
 
 export default function TrainerClientsPage() {
     const { user } = useAuth()
@@ -208,14 +209,7 @@ export default function TrainerClientsPage() {
                         <div key={client.user_id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {/* Top Row: Client Info */}
                             <Link href={`/app/trainer/users/${client.user_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{
-                                    width: '48px', height: '48px', borderRadius: '50%',
-                                    background: 'var(--primary-gradient)',
-                                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontWeight: 'bold', fontSize: '1.2rem'
-                                }}>
-                                    {client.full_name?.charAt(0).toUpperCase()}
-                                </div>
+                                <Avatar name={client.full_name} userId={client.user_id} url={client.avatar_url} size={48} />
                                 <div>
                                     <p style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{client.full_name}</p>
                                     <p style={{ color: 'var(--secondary)', fontSize: '0.9rem' }}>Age: {client.age || '-'} | Weight: {client.weight_kg || '-'}kg</p>

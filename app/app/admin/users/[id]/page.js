@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react'
 import { supabase } from '../../../../../lib/supabase'
 import Link from 'next/link'
+import Avatar from '../../../../../components/Avatar'
 
 export default function AdminClientProfilePage({ params }) {
     const { id } = use(params)
@@ -39,15 +40,12 @@ export default function AdminClientProfilePage({ params }) {
 
             <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-                    <div style={{
-                        width: '80px', height: '80px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '2rem', fontWeight: 'bold', color: 'white'
-                    }}>
-                        {client.full_name?.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                        name={client.full_name}
+                        userId={client.user_id}
+                        url={client.avatar_url}
+                        size={80}
+                    />
                     <div>
                         <h1 style={{ marginBottom: '0.25rem' }}>{client.full_name}</h1>
                         <span style={{

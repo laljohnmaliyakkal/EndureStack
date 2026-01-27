@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Avatar from '../../../components/Avatar'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
 import Link from 'next/link'
@@ -198,11 +199,20 @@ export default function Dashboard() {
 
     return (
         <div>
-            <h1 style={{ marginBottom: '2rem' }}>Welcome, {profile.full_name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+                <Avatar
+                    url={profile.avatar_url}
+                    name={profile.full_name}
+                    userId={user.id}
+                    size={64}
+                />
+                <div>
+                    <h1 style={{ marginBottom: '0.25rem', fontSize: '1.8rem' }}>Welcome, {profile.full_name}</h1>
+                    <h2 style={{ fontSize: '1rem', color: 'var(--secondary)', fontWeight: 'normal' }}>Dashboard - {profile.role?.toUpperCase()}</h2>
+                </div>
+            </div>
 
             <div className="card">
-                <h2 style={{ marginBottom: '1rem' }}>Dashboard - {profile.role?.toUpperCase()}</h2>
-
 
 
                 {profile.role === 'admin' && (
