@@ -11,6 +11,7 @@ import Avatar from '../../../../components/Avatar'
 export default function TrainerClientsPage() {
     const { user } = useAuth()
     const [clients, setClients] = useState([])
+    const [clientActivePlans, setClientActivePlans] = useState({})
     const [searchQuery, setSearchQuery] = useState('')
     const [plans, setPlans] = useState([])
     const [assignModalOpen, setAssignModalOpen] = useState(false)
@@ -39,8 +40,22 @@ export default function TrainerClientsPage() {
                         .in('user_id', userIds)
 
                     setClients(profiles || [])
+
+                    // 2b. Check for active plans for these users
+                    const { data: activePlans } = await supabase
+                        .from('user_plans')
+                        .select('user_id, plan_id')
+                        .in('user_id', userIds)
+                        .eq('is_active', true)
+
+                    const planMap = {}
+                    if (activePlans) {
+                        activePlans.forEach(p => planMap[p.user_id] = p.plan_id)
+                    }
+                    setClientActivePlans(planMap)
                 } else {
                     setClients([])
+                    setClientActivePlans({})
                 }
 
                 // 3. Fetch Available Plans (Public or Created by this Trainer)
@@ -136,6 +151,8 @@ export default function TrainerClientsPage() {
 
             if (error) throw error
 
+            setClientActivePlans(prev => ({ ...prev, [selectedUser]: selectedPlan }))
+
             setAlertModal({
                 isOpen: true,
                 title: 'Success',
@@ -167,6 +184,12 @@ export default function TrainerClientsPage() {
             if (!data || data.length === 0) {
                 throw new Error('No active plan found to unassign, or you do not have permission to modify this data.')
             }
+
+            setClientActivePlans(prev => {
+                const next = { ...prev }
+                delete next[selectedUser]
+                return next
+            })
 
             setAlertModal({
                 isOpen: true,
@@ -221,13 +244,23 @@ export default function TrainerClientsPage() {
                                 <Link href={`/app/workouts/log?userId=${client.user_id}`} className="btn" style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
                                     Log Workout
                                 </Link>
-                                <button
-                                    onClick={() => openAssignModal(client.user_id)}
-                                    className="btn"
-                                    style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
-                                >
-                                    Assign Plan
-                                </button>
+                                {clientActivePlans[client.user_id] ? (
+                                    <Link
+                                        href={`/app/workouts/plan?userId=${client.user_id}`}
+                                        className="btn"
+                                        style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)', textDecoration: 'none', display: 'block' }}
+                                    >
+                                        View Plan
+                                    </Link>
+                                ) : (
+                                    <button
+                                        onClick={() => openAssignModal(client.user_id)}
+                                        className="btn"
+                                        style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                    >
+                                        Assign Plan
+                                    </button>
+                                )}
                                 <Link href={`/app/nutrition?userId=${client.user_id}`} className="btn" style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
                                     View Diet
                                 </Link>
