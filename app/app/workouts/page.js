@@ -53,7 +53,7 @@ function WorkoutsContent() {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {(filter === 'future' || filter === 'completed') && (
                         <Link href="/app/dashboard" style={{ textDecoration: 'none', color: 'var(--secondary)', fontSize: '1.5rem' }}>
@@ -62,7 +62,7 @@ function WorkoutsContent() {
                     )}
                     <h1>{getTitle()}</h1>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <Link href="/app/workouts/plan" className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
                         My Plan
                     </Link>

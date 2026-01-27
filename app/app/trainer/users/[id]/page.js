@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Modal from '../../../../../components/Modal'
 import ConfirmModal from '../../../../../components/ConfirmModal'
+import Avatar from '../../../../../components/Avatar'
 
 export default function ClientProfilePage({ params }) {
     const { id } = use(params)
@@ -167,15 +168,7 @@ export default function ClientProfilePage({ params }) {
 
             <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-                    <div style={{
-                        width: '80px', height: '80px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '2rem', fontWeight: 'bold', color: 'white'
-                    }}>
-                        {client.full_name?.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar name={client.full_name} userId={client.user_id} url={client.avatar_url} width={80} size={80} />
                     <div>
                         <h1 style={{ marginBottom: '0.25rem' }}>{client.full_name}</h1>
                         <span style={{

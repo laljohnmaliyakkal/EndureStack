@@ -62,7 +62,22 @@ export default function Navbar() {
                     {profile?.role === 'user' && !hasTrainer && (
                         <Link href="/pricing" style={isActive('/pricing')} onClick={closeMenu}>Plans</Link>
                     )}
-                    <Link href="/app/profile" style={isActive('/app/profile')} onClick={closeMenu}>Profile</Link>
+                    <Link href="/app/profile" style={{ ...isActive('/app/profile'), display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={closeMenu}>
+                        {profile?.avatar_url && (
+                            <img
+                                src={profile.avatar_url}
+                                alt="Profile"
+                                style={{
+                                    width: '24px',
+                                    height: '24px',
+                                    borderRadius: '50%',
+                                    objectFit: 'cover',
+                                    border: '1px solid var(--border)'
+                                }}
+                            />
+                        )}
+                        <span>Profile</span>
+                    </Link>
 
                     <button onClick={() => { closeMenu(); signOut(); }} style={{
                         backgroundColor: 'transparent',
@@ -153,10 +168,23 @@ export default function Navbar() {
                 )}
 
                 <Link href="/app/profile" className={`mobile-tab ${pathname === '/app/profile' ? 'active' : ''}`}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
+                    {profile?.avatar_url ? (
+                        <img
+                            src={profile.avatar_url}
+                            alt="Profile"
+                            style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                objectFit: 'cover'
+                            }}
+                        />
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    )}
                     <span>Profile</span>
                 </Link>
             </div>

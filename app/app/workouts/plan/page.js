@@ -5,6 +5,7 @@ import { supabase } from '../../../../lib/supabase'
 import { useAuth } from '../../../../components/AuthProvider'
 import { useRouter } from 'next/navigation'
 import ConfirmModal from '../../../../components/ConfirmModal'
+import Modal from '../../../../components/Modal'
 
 export default function UserPlanPage() {
     const { user } = useAuth()
@@ -15,6 +16,8 @@ export default function UserPlanPage() {
     const [expandingDay, setExpandingDay] = useState(null)
     const [assignedByName, setAssignedByName] = useState(null)
     const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', onConfirm: null, isAlert: false })
+    const [previewPlan, setPreviewPlan] = useState(null)
+    const [previewLoading, setPreviewLoading] = useState(false)
 
     useEffect(() => {
         if (user) {
@@ -81,6 +84,50 @@ export default function UserPlanPage() {
         }
     }
 
+    const handlePreviewPlan = async (planId) => {
+        setPreviewLoading(true)
+        setPreviewPlan(null) // Reset
+        try {
+            const { data, error } = await supabase
+                .from('workout_plans')
+                .select(`
+                    id, name, description,
+                    workout_plan_days (
+                        id, day_number, day_name,
+                        workout_plan_items (
+                            id, workout_name, sets, reps, order_index
+                        )
+                    )
+                `)
+                .eq('id', planId)
+                .single()
+
+            if (error) throw error
+
+            // Sort days and items
+            if (data && data.workout_plan_days) {
+                data.workout_plan_days.sort((a, b) => a.day_number - b.day_number)
+                data.workout_plan_days.forEach(day => {
+                    if (day.workout_plan_items) {
+                        day.workout_plan_items.sort((a, b) => a.order_index - b.order_index)
+                    }
+                })
+            }
+
+            setPreviewPlan(data)
+        } catch (error) {
+            console.error('Error fetching plan details:', error)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to load plan details.',
+                isAlert: true
+            })
+        } finally {
+            setPreviewLoading(false)
+        }
+    }
+
     const handleSelectPlan = (planId) => {
         setModalState({
             isOpen: true,
@@ -116,10 +163,13 @@ export default function UserPlanPage() {
     }
 
     const handleLeavePlan = () => {
+        console.log('Stop Plan clicked')
         setModalState({
             isOpen: true,
             title: 'Stop Plan',
             message: 'Are you sure you want to stop the current plan?',
+            confirmText: 'Stop Plan',
+            isDanger: true,
             onConfirm: executeLeavePlan
         })
     }
@@ -127,11 +177,13 @@ export default function UserPlanPage() {
     const executeLeavePlan = async () => {
         setLoading(true)
         try {
-            await supabase
+            const { error } = await supabase
                 .from('user_plans')
                 .update({ is_active: false })
                 .eq('user_id', user.id)
                 .eq('is_active', true)
+
+            if (error) throw error
 
             setActivePlan(null)
             fetchData()
@@ -232,7 +284,11 @@ export default function UserPlanPage() {
             <div style={{ paddingBottom: '4rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h1 style={{ fontSize: '1.5rem' }}>My Plan</h1>
-                    <button onClick={handleLeavePlan} style={{ color: 'var(--danger)', background: 'none', border: '1px solid var(--danger)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                    <button
+                        type="button"
+                        onClick={handleLeavePlan}
+                        style={{ color: 'var(--danger)', background: 'none', border: '1px solid var(--danger)', padding: '0.25rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }}
+                    >
                         Stop Plan
                     </button>
                 </div>
@@ -285,6 +341,60 @@ export default function UserPlanPage() {
                     ))}
                 </div>
 
+                <Modal
+                    isOpen={!!previewPlan || previewLoading}
+                    onClose={() => setPreviewPlan(null)}
+                    title={previewPlan ? previewPlan.name : 'Loading...'}
+                    footer={
+                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', width: '100%' }}>
+                            <button
+                                onClick={() => setPreviewPlan(null)}
+                                className="btn"
+                                style={{ backgroundColor: 'var(--secondary)' }}
+                            >
+                                Close
+                            </button>
+                            {previewPlan && (
+                                <button
+                                    onClick={() => {
+                                        setPreviewPlan(null)
+                                        handleSelectPlan(previewPlan.id)
+                                    }}
+                                    className="btn"
+                                >
+                                    Start Plan
+                                </button>
+                            )}
+                        </div>
+                    }
+                >
+                    {previewLoading ? (
+                        <p>Loading plan details...</p>
+                    ) : (
+                        previewPlan && (
+                            <div>
+                                <p style={{ color: 'var(--secondary)', marginBottom: '1.5rem' }}>{previewPlan.description}</p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    {previewPlan.workout_plan_days.map(day => (
+                                        <div key={day.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem' }}>
+                                            <h4 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Day {day.day_number}: {day.day_name}</h4>
+                                            <div style={{ paddingLeft: '0.5rem' }}>
+                                                {day.workout_plan_items.map(item => (
+                                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                                        <span>{item.workout_name}</span>
+                                                        <span style={{ color: 'var(--secondary)' }}>{item.sets} x {item.reps}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    )}
+                </Modal>
+
                 <ConfirmModal
                     isOpen={modalState.isOpen}
                     onClose={() => setModalState({ ...modalState, isOpen: false })}
@@ -310,17 +420,80 @@ export default function UserPlanPage() {
                     <div key={plan.id} className="card">
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{plan.name}</h3>
                         <p style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>{plan.description}</p>
-                        <button
-                            className="btn"
-                            style={{ width: '100%' }}
-                            onClick={() => handleSelectPlan(plan.id)}
-                        >
-                            Start Plan
-                        </button>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <button
+                                className="btn"
+                                style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                onClick={() => handlePreviewPlan(plan.id)}
+                            >
+                                View Details
+                            </button>
+                            <button
+                                className="btn"
+                                style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                onClick={() => handleSelectPlan(plan.id)}
+                            >
+                                Start Plan
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
 
+
+            <Modal
+                isOpen={!!previewPlan || previewLoading}
+                onClose={() => setPreviewPlan(null)}
+                title={previewPlan ? previewPlan.name : 'Loading...'}
+                footer={
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', width: '100%' }}>
+                        <button
+                            onClick={() => setPreviewPlan(null)}
+                            className="btn"
+                            style={{ backgroundColor: 'var(--secondary)' }}
+                        >
+                            Close
+                        </button>
+                        {previewPlan && (
+                            <button
+                                onClick={() => {
+                                    setPreviewPlan(null)
+                                    handleSelectPlan(previewPlan.id)
+                                }}
+                                className="btn"
+                            >
+                                Start Plan
+                            </button>
+                        )}
+                    </div>
+                }
+            >
+                {previewLoading ? (
+                    <p>Loading plan details...</p>
+                ) : (
+                    previewPlan && (
+                        <div>
+                            <p style={{ color: 'var(--secondary)', marginBottom: '1.5rem' }}>{previewPlan.description}</p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {previewPlan.workout_plan_days.map(day => (
+                                    <div key={day.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem' }}>
+                                        <h4 style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Day {day.day_number}: {day.day_name}</h4>
+                                        <div style={{ paddingLeft: '0.5rem' }}>
+                                            {day.workout_plan_items.map(item => (
+                                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                                                    <span>{item.workout_name}</span>
+                                                    <span style={{ color: 'var(--secondary)' }}>{item.sets} x {item.reps}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )
+                )}
+            </Modal>
 
             <ConfirmModal
                 isOpen={modalState.isOpen}

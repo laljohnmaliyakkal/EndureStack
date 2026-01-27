@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../../components/AuthProvider'
 import { supabase } from '../../../lib/supabase'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Avatar from '../../../components/Avatar'
 
 export default function Profile() {
     const { profile, user, refreshProfile } = useAuth()
@@ -25,7 +26,11 @@ export default function Profile() {
 
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
-    const router = useRouter() // Import added implicitly if not present, wait I need to check imports.
+    const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false)
+    const router = useRouter()
+
+    // Generate avatar list
+    const avatars = Array.from({ length: 17 }, (_, i) => `/avatars/avatar_${i + 1}.png`)
 
     useEffect(() => {
         if (searchParams.get('first_time')) {
@@ -61,7 +66,8 @@ export default function Profile() {
                     gym_id: profile.gym_id || null,
                     certifications: profile.certifications || '',
                     experience: profile.experience || '',
-                    achievements: profile.achievements || ''
+                    achievements: profile.achievements || '',
+                    avatar_url: profile.avatar_url || null
                 })
 
                 // If user has a gym, find its name for display
@@ -76,7 +82,8 @@ export default function Profile() {
                 // Fallback for new users (no profile yet)
                 setFormData(prev => ({
                     ...prev,
-                    full_name: user?.user_metadata?.full_name || prev.full_name
+                    full_name: user?.user_metadata?.full_name || prev.full_name,
+                    avatar_url: null
                 }))
             }
         }
@@ -140,6 +147,89 @@ export default function Profile() {
                         {message}
                     </div>
                 )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
+                    <div
+                        style={{
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            border: '4px solid var(--primary)',
+                            marginBottom: '1rem',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            width: '120px',
+                            height: '120px'
+                        }}
+                        onClick={() => setIsAvatarModalOpen(!isAvatarModalOpen)}
+                    >
+                        <Avatar
+                            url={formData.avatar_url}
+                            userId={user?.id}
+                            name={formData.full_name || 'User'}
+                            size={112}
+                            className="profile-avatar"
+                        />
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'end',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 40%)',
+                        }}>
+                            <span style={{
+                                color: 'white',
+                                fontSize: '0.7rem',
+                                marginBottom: '0.5rem'
+                            }}>Change</span>
+                        </div>
+                    </div>
+
+                    {isAvatarModalOpen && (
+                        <div style={{
+                            marginBottom: '1.5rem',
+                            background: 'var(--bg)',
+                            padding: '1rem',
+                            borderRadius: '0.5rem',
+                            border: '1px solid var(--border)',
+                            width: '100%'
+                        }}>
+                            <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Choose an Avatar</h3>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+                                gap: '0.5rem'
+                            }}>
+                                {avatars.map((avatar) => (
+                                    <div
+                                        key={avatar}
+                                        onClick={() => {
+                                            setFormData({ ...formData, avatar_url: avatar })
+                                            setIsAvatarModalOpen(false)
+                                        }}
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '50%',
+                                            overflow: 'hidden',
+                                            cursor: 'pointer',
+                                            border: formData.avatar_url === avatar ? '3px solid var(--primary)' : '2px solid transparent',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <img
+                                            src={avatar}
+                                            alt="Avatar Option"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 <form onSubmit={handleUpdate}>
                     <div style={{ marginBottom: '1rem' }}>

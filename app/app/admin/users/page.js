@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Modal from '../../../../components/Modal'
 import ConfirmModal from '../../../../components/ConfirmModal'
+import Avatar from '../../../../components/Avatar'
 
 export default function UsersPage() {
     const { user } = useAuth()
@@ -329,7 +330,8 @@ export default function UsersPage() {
                             return (
                                 <tr key={u.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
                                     <td style={{ padding: '0.75rem' }}>
-                                        <Link href={`/app/admin/users/${u.user_id}`} style={{ fontWeight: '500' }}>
+                                        <Link href={`/app/admin/users/${u.user_id}`} style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <Avatar name={u.full_name} userId={u.user_id} url={u.avatar_url} size={32} />
                                             {u.full_name}
                                         </Link>
                                     </td>
@@ -484,7 +486,10 @@ export default function UsersPage() {
                 <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {demotionModal.clients.map(client => (
                         <div key={client.user_id} className="card" style={{ padding: '0.75rem', backgroundColor: 'var(--background)' }}>
-                            <p style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{client.full_name}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                                <Avatar name={client.full_name} userId={client.user_id} url={client.avatar_url} size={32} />
+                                <p style={{ fontWeight: 'bold', margin: 0 }}>{client.full_name}</p>
+                            </div>
                             <select
                                 className="input"
                                 value={reassignments[client.user_id] || 'unassign'}
