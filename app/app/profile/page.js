@@ -14,7 +14,10 @@ export default function Profile() {
         age: '',
         height_cm: '',
         weight_kg: '',
-        gym_id: null
+        weight_kg: '',
+        gym_id: null,
+        gender: '',
+        activity_level: ''
     })
 
     // Gym Search State
@@ -67,7 +70,9 @@ export default function Profile() {
                     certifications: profile.certifications || '',
                     experience: profile.experience || '',
                     achievements: profile.achievements || '',
-                    avatar_url: profile.avatar_url || null
+                    avatar_url: profile.avatar_url || null,
+                    gender: profile.gender || '',
+                    activity_level: profile.activity_level || ''
                 })
 
                 // If user has a gym, find its name for display
@@ -357,12 +362,37 @@ export default function Profile() {
                                 onChange={e => setFormData({ ...formData, weight_kg: e.target.value })}
                             />
                         </div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Gender</label>
+                            <select
+                                className="input"
+                                value={formData.gender}
+                                onChange={e => setFormData({ ...formData, gender: e.target.value })}
+                            >
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem' }}>Activity Level</label>
+                            <select
+                                className="input"
+                                value={formData.activity_level}
+                                onChange={e => setFormData({ ...formData, activity_level: e.target.value })}
+                            >
+                                <option value="">Select Activity Level</option>
+                                <option value="sedentary">Sedentary</option>
+                                <option value="light">Light</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="active">Active</option>
+                                <option value="very_active">Very Active</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <div style={{ marginBottom: '1rem' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem' }}>Role</label>
-                        <div className="input" style={{ opacity: 0.7 }}>{profile.role.toUpperCase()}</div>
-                    </div>
+
 
                     {profile.role === 'trainer' && (
                         <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>

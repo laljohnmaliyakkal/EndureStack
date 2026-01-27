@@ -24,8 +24,19 @@ export default function NutritionPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [summary, setSummary] = useState({ calories: 0, protein: 0, carbs: 0, fats: 0 })
     const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', isAlert: false, isDanger: false, onConfirm: null })
+    const [targetProfile, setTargetProfile] = useState(null)
 
-    // Date Selection (default today)
+    useEffect(() => {
+        const getProfile = async () => {
+            if (isViewingClient && targetUserId) {
+                const { data } = await supabase.from('profiles').select('*').eq('user_id', targetUserId).single()
+                setTargetProfile(data)
+            } else {
+                setTargetProfile(profile)
+            }
+        }
+        getProfile()
+    }, [isViewingClient, targetUserId, profile])
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
     const fetchLogs = async () => {
@@ -95,6 +106,32 @@ export default function NutritionPage() {
         })
     }
 
+    // Calculate Targets
+    const targets = (() => {
+        const p = targetProfile
+        if (!p || !p.weight_kg || !p.height_cm || !p.age) return null
+
+        let bmr = (10 * p.weight_kg) + (6.25 * p.height_cm) - (5 * p.age)
+        if (p.gender === 'female') bmr -= 161
+        else bmr += 5
+
+        const multipliers = {
+            sedentary: 1.2,
+            light: 1.375,
+            moderate: 1.55,
+            active: 1.725,
+            very_active: 1.9
+        }
+        const activity = p?.activity_level || 'moderate'
+        const tdee = Math.round(bmr * (multipliers[activity] || 1.55))
+
+        return {
+            maintenance: tdee,
+            fatLoss: tdee - 500,
+            muscleGain: tdee + 300
+        }
+    })()
+
     // Group logs by meal type
     const groupedLogs = {
         Breakfast: logs.filter(l => l.meal_type === 'Breakfast'),
@@ -128,7 +165,7 @@ export default function NutritionPage() {
             <div className="card" style={{ marginBottom: '2rem', backgroundImage: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: 'white', border: 'none' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                     <h2 style={{ fontSize: '1.2rem', margin: 0 }}>Daily Summary</h2>
-                    <span style={{ fontSize: '0.9rem', opacity: 0.9 }}>Goal: 2000 kcal</span>
+                    <span style={{ fontSize: '0.9rem', opacity: 0.9 }}>Goal: {targets ? targets.maintenance : 2000} kcal</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
                     <div>
@@ -148,6 +185,26 @@ export default function NutritionPage() {
                         <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Fats</div>
                     </div>
                 </div>
+
+                {targets && (
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', opacity: 0.9 }}>Targets</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center' }}>
+                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Fat Loss</div>
+                                <div style={{ fontWeight: 'bold' }}>{targets.fatLoss}</div>
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.4)' }}>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Maintenance</div>
+                                <div style={{ fontWeight: 'bold' }}>{targets.maintenance}</div>
+                            </div>
+                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '0.5rem' }}>
+                                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>Muscle Gain</div>
+                                <div style={{ fontWeight: 'bold' }}>{targets.muscleGain}</div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Meals */}

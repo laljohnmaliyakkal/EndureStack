@@ -120,6 +120,7 @@ export default function Dashboard() {
                     .single()
 
                 // 4. Calculate Streak
+                // 4. Calculate Streak
                 const { data: sessions } = await supabase
                     .from('workout_sessions')
                     .select('session_date')
@@ -127,45 +128,66 @@ export default function Dashboard() {
                     .order('session_date', { ascending: false })
 
                 let streak = 0
-                if (sessions) {
-                    const dates = new Set(sessions.map(s => s.session_date))
+                let highestStreak = 0
+
+                if (sessions && sessions.length > 0) {
+                    // Current Streak
+                    const datesSet = new Set(sessions.map(s => s.session_date))
                     let checkDate = new Date()
                     let keepChecking = true
-
-                    // Normalize to YYYY-MM-DD local logic if needed, but session_date is YYYY-MM-DD string from specific timezone? 
-                    // Assuming session_date is stored as YYYY-MM-DD string in DB.
-                    // We need to match client local time or UTC? The app seems to use `new Date().toISOString().split('T')[0]` which is UTC.
-                    // Let's stick to the same convention used in existing code: `today` variable.
-
-                    // Simple helper to subtract days
                     const subDays = (date, n) => {
                         const d = new Date(date)
                         d.setDate(d.getDate() - n)
                         return d
                     }
-
-                    // We iterate using Date objects but compare using ISO strings
-                    checkDate = new Date() // Today
-
                     while (keepChecking) {
                         const dateStr = checkDate.toISOString().split('T')[0]
-                        const dayOfWeek = checkDate.getDay() // 0 is Sunday
-
-                        if (dates.has(dateStr)) {
+                        const dayOfWeek = checkDate.getDay()
+                        if (datesSet.has(dateStr)) {
                             streak++
                             checkDate = subDays(checkDate, 1)
                         } else {
                             if (dateStr === today) {
-                                // If today is missed, checks yesterday. Don't break yet.
                                 checkDate = subDays(checkDate, 1)
-                            } else if (dayOfWeek === 0) { // Sunday
-                                // Skip Sunday if missed
+                            } else if (dayOfWeek === 0) {
                                 checkDate = subDays(checkDate, 1)
                             } else {
                                 keepChecking = false
                             }
                         }
                     }
+
+                    // Highest Streak (Sorted Ascending)
+                    const uniqueSortedDates = [...datesSet].sort()
+                    let currentRun = 0
+                    let prevDate = null
+
+                    uniqueSortedDates.forEach(dateStr => {
+                        const d = new Date(dateStr)
+                        if (!prevDate) {
+                            currentRun = 1
+                        } else {
+                            const diffTime = Math.abs(d - prevDate)
+                            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+
+                            if (diffDays === 1) {
+                                currentRun++
+                            } else if (diffDays === 2) {
+                                // Check if skipped day was Sunday
+                                const missingDay = new Date(prevDate)
+                                missingDay.setDate(missingDay.getDate() + 1)
+                                if (missingDay.getDay() === 0) {
+                                    currentRun++
+                                } else {
+                                    currentRun = 1
+                                }
+                            } else {
+                                currentRun = 1
+                            }
+                        }
+                        if (currentRun > highestStreak) highestStreak = currentRun
+                        prevDate = d
+                    })
                 }
 
                 if (assignment) {
@@ -181,13 +203,14 @@ export default function Dashboard() {
                             daysTrained: daysTrained || 0,
                             scheduledWorkouts: scheduledCount || 0,
                             streak: streak,
+                            highestStreak: highestStreak,
                             trainer: { id: trainerDetails.user_id, full_name: trainerDetails.full_name }
                         }))
                     } else {
-                        setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, trainer: null }))
+                        setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, highestStreak: highestStreak, trainer: null }))
                     }
                 } else {
-                    setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, trainer: null }))
+                    setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, highestStreak: highestStreak, trainer: null }))
                 }
             }
         }
@@ -317,6 +340,8 @@ export default function Dashboard() {
                             </div>
                             <p style={{ color: 'var(--secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>
                                 Consecutive days
+                                <br />
+                                <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#eab308' }}>🔥 Best: {stats.highestStreak || 0}</span>
                             </p>
                         </div>
 
