@@ -193,7 +193,7 @@ export default function Dashboard() {
                 if (assignment) {
                     const { data: trainerDetails } = await supabase
                         .from('profiles')
-                        .select('user_id, full_name')
+                        .select('user_id, full_name, avatar_url')
                         .eq('user_id', assignment.trainer_id)
                         .single()
 
@@ -204,7 +204,11 @@ export default function Dashboard() {
                             scheduledWorkouts: scheduledCount || 0,
                             streak: streak,
                             highestStreak: highestStreak,
-                            trainer: { id: trainerDetails.user_id, full_name: trainerDetails.full_name }
+                            trainer: {
+                                id: trainerDetails.user_id,
+                                full_name: trainerDetails.full_name,
+                                avatar_url: trainerDetails.avatar_url
+                            }
                         }))
                     } else {
                         setStats(prev => ({ ...prev, daysTrained: daysTrained || 0, scheduledWorkouts: scheduledCount || 0, streak: streak, highestStreak: highestStreak, trainer: null }))
@@ -400,8 +404,16 @@ export default function Dashboard() {
                                     justifyContent: 'space-between'
                                 }}>
                                     <div>
-                                        <h3 style={{ color: 'var(--primary)', marginBottom: '0.5rem' }}>My Trainer</h3>
-                                        <p style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: '0' }}>{stats.trainer.full_name}</p>
+                                        <h3 style={{ color: 'var(--primary)', marginBottom: '1rem' }}>My Trainer</h3>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <Avatar
+                                                url={stats.trainer.avatar_url}
+                                                name={stats.trainer.full_name}
+                                                userId={stats.trainer.id}
+                                                size={48}
+                                            />
+                                            <p style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0' }}>{stats.trainer.full_name}</p>
+                                        </div>
                                     </div>
                                     <p style={{ color: 'var(--secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>
                                         View profile &rarr;

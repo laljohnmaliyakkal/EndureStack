@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import Avatar from '../../../../components/Avatar'
 import { supabase } from '../../../../lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -44,15 +45,12 @@ export default function TrainerProfilePage({ params }) {
 
             <div className="card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
-                    <div style={{
-                        width: '80px', height: '80px',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--primary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '2rem', fontWeight: 'bold', color: 'white'
-                    }}>
-                        {trainer.full_name?.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                        url={trainer.avatar_url}
+                        name={trainer.full_name}
+                        userId={trainer.user_id}
+                        size={80}
+                    />
                     <div>
                         <h1 style={{ marginBottom: '0.25rem' }}>{trainer.full_name}</h1>
                         <span style={{
