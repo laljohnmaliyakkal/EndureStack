@@ -334,8 +334,8 @@ export default function Profile() {
                         </p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                        <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                        <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Age</label>
                             <input
                                 type="number"
@@ -344,7 +344,7 @@ export default function Profile() {
                                 onChange={e => setFormData({ ...formData, age: e.target.value })}
                             />
                         </div>
-                        <div style={{ marginBottom: '1rem' }}>
+                        <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Height (cm)</label>
                             <input
                                 type="number"
@@ -353,7 +353,7 @@ export default function Profile() {
                                 onChange={e => setFormData({ ...formData, height_cm: e.target.value })}
                             />
                         </div>
-                        <div style={{ marginBottom: '1rem' }}>
+                        <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Weight (kg)</label>
                             <input
                                 type="number"
@@ -362,7 +362,10 @@ export default function Profile() {
                                 onChange={e => setFormData({ ...formData, weight_kg: e.target.value })}
                             />
                         </div>
-                        <div style={{ marginBottom: '1rem' }}>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                        <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Gender</label>
                             <select
                                 className="input"
@@ -375,7 +378,7 @@ export default function Profile() {
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div style={{ marginBottom: '1rem' }}>
+                        <div>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Activity Level</label>
                             <select
                                 className="input"
