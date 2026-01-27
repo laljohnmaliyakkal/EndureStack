@@ -3,13 +3,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../../lib/supabase'
 import { useAuth } from '../../../../components/AuthProvider'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import ConfirmModal from '../../../../components/ConfirmModal'
 import Modal from '../../../../components/Modal'
 
 export default function UserPlanPage() {
     const { user } = useAuth()
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const targetUserId = searchParams.get('userId') || user?.id
     const [activePlan, setActivePlan] = useState(null)
     const [availablePlans, setAvailablePlans] = useState([])
     const [loading, setLoading] = useState(true)
@@ -20,10 +22,10 @@ export default function UserPlanPage() {
     const [previewLoading, setPreviewLoading] = useState(false)
 
     useEffect(() => {
-        if (user) {
+        if (user && targetUserId) {
             fetchData()
         }
-    }, [user])
+    }, [user, targetUserId])
 
     const fetchData = async () => {
         try {
@@ -44,7 +46,7 @@ export default function UserPlanPage() {
                         )
                     )
                 `)
-                .eq('user_id', user.id)
+                .eq('user_id', targetUserId)
                 .eq('is_active', true)
                 .single()
 
@@ -67,16 +69,16 @@ export default function UserPlanPage() {
                     if (profile) setAssignedByName(profile.full_name)
                 }
                 setActivePlan(userPlan)
-            } else {
-                // 2. Fetch public plans if no active plan
-                const { data: plans } = await supabase
-                    .from('workout_plans')
-                    .select('*')
-                    .eq('is_public', true)
-                    .order('name')
-
-                setAvailablePlans(plans || [])
             }
+
+            // 2. Fetch public plans (Always fetch to allow switching)
+            const { data: plans } = await supabase
+                .from('workout_plans')
+                .select('*')
+                .eq('is_public', true)
+                .order('name')
+
+            setAvailablePlans(plans || [])
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
@@ -140,11 +142,20 @@ export default function UserPlanPage() {
     const executeSelectPlan = async (planId) => {
         setLoading(true)
         try {
+            // 1. Deactivate any existing active plans for this user
+            await supabase
+                .from('user_plans')
+                .update({ is_active: false })
+                .eq('user_id', targetUserId)
+                .eq('is_active', true)
+
+            // 2. Insert new plan
             const { error } = await supabase
                 .from('user_plans')
                 .insert({
-                    user_id: user.id,
+                    user_id: targetUserId,
                     plan_id: planId,
+                    assigned_by: user.id !== targetUserId ? user.id : null,
                     is_active: true,
                     start_date: new Date().toISOString().split('T')[0]
                 })
@@ -180,7 +191,7 @@ export default function UserPlanPage() {
             const { error } = await supabase
                 .from('user_plans')
                 .update({ is_active: false })
-                .eq('user_id', user.id)
+                .eq('user_id', targetUserId)
                 .eq('is_active', true)
 
             if (error) throw error
@@ -217,7 +228,7 @@ export default function UserPlanPage() {
             const { data: existingSession, error: fetchError } = await supabase
                 .from('workout_sessions')
                 .select('id')
-                .eq('user_id', user.id)
+                .eq('user_id', targetUserId)
                 .eq('session_date', today)
                 .single()
 
@@ -226,7 +237,7 @@ export default function UserPlanPage() {
             } else {
                 const { data: newSession, error: createError } = await supabase
                     .from('workout_sessions')
-                    .insert([{ user_id: user.id, session_date: today }])
+                    .insert([{ user_id: targetUserId, session_date: today }])
                     .select()
                     .single()
 
@@ -262,7 +273,7 @@ export default function UserPlanPage() {
             }
 
             // 4. Redirect
-            router.push(`/app/workouts/log?userId=${user.id}&date=${today}`)
+            router.push(`/app/workouts/log?userId=${targetUserId}&date=${today}`)
 
         } catch (error) {
             console.error('Error starting workout:', error)
@@ -394,6 +405,34 @@ export default function UserPlanPage() {
                         )
                     )}
                 </Modal>
+
+                <div style={{ marginTop: '3rem', borderTop: '1px solid var(--border)', paddingTop: '2rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Switch to Another Plan</h2>
+                    <div style={{ display: 'grid', gap: '1.5rem' }}>
+                        {availablePlans.filter(p => p.id !== activePlan.workout_plans.id).map(plan => (
+                            <div key={plan.id} className="card">
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{plan.name}</h3>
+                                <p style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>{plan.description}</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <button
+                                        className="btn"
+                                        style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                        onClick={() => handlePreviewPlan(plan.id)}
+                                    >
+                                        View Details
+                                    </button>
+                                    <button
+                                        className="btn"
+                                        style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                        onClick={() => handleSelectPlan(plan.id)}
+                                    >
+                                        Start Plan
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
                 <ConfirmModal
                     isOpen={modalState.isOpen}
