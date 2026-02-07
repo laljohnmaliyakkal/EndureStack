@@ -6,6 +6,7 @@ import { useAuth } from '../../../../components/AuthProvider'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Modal from '../../../../components/Modal'
 import AddExerciseModal from './AddExerciseModal'
+import { getOverloadRecommendation } from '../../../../lib/progressiveOverload'
 
 function Logger() {
     const { user } = useAuth()
@@ -26,6 +27,8 @@ function Logger() {
     // Form Selection
     const [selectedMuscle, setSelectedMuscle] = useState('')
     const [selectedExercise, setSelectedExercise] = useState('')
+    const [recommendation, setRecommendation] = useState(null)
+    const [showRecDetail, setShowRecDetail] = useState(false)
 
     const [reps, setReps] = useState(0)
     const [weight, setWeight] = useState(0)
@@ -109,16 +112,12 @@ function Logger() {
         getSession()
     }, [date, targetUserId])
 
-    // Auto-populate from previous session
+    // Auto-populate from previous session & Calculate Recommendation
     useEffect(() => {
         if (!selectedExercise || !user) return
 
-        const fetchPreviousBest = async () => {
-            // Find latest session with this workout (excluding current date if needed, but 'latest' implies past usually)
-            // Actually, we want the LAST session before TODAY, or just the very last one logged?
-            // "previous session" usually means the one before this.
-
-            // Query strategy: workout_sessions -> inner join logs filtered by name -> order by date desc -> limit 1
+        const fetchExerciseHistory = async () => {
+            // Fetch history for Overload Analysis (last 12 sessions)
             const { data, error } = await supabase
                 .from('workout_sessions')
                 .select('session_date, workout_logs!inner(weight, reps, workout_name)')
@@ -126,12 +125,31 @@ function Logger() {
                 .eq('workout_logs.workout_name', selectedExercise)
                 .lt('session_date', date) // strictly before current selected date
                 .order('session_date', { ascending: false })
-                .limit(1)
+                .limit(12)
 
             if (data && data.length > 0) {
-                const prevLogs = data[0].workout_logs
-                // Find max weight, then max reps
-                const bestSet = prevLogs.reduce((best, current) => {
+                // 1. Format history for analysis
+                const history = data.map(session => ({
+                    date: session.session_date,
+                    sets: session.workout_logs
+                }))
+
+                // 2. Get Recommendation
+                const config = {
+                    minReps: 12,
+                    maxReps: 15,
+                    incrementKg: 2.5,
+                    muscleGroup: selectedMuscle // Passed from state
+                }
+
+                // Dynamically import to avoid server/client issues if any, though standard import is fine here
+                // We'll use the imported function
+                const rec = getOverloadRecommendation(history, config)
+                setRecommendation(rec)
+
+                // 3. Auto-populate inputs from MOST RECENT session (history[0])
+                const lastSessionLogs = history[0].sets
+                const bestSet = lastSessionLogs.reduce((best, current) => {
                     if (!best) return current
                     if (current.weight > best.weight) return current
                     if (current.weight === best.weight && current.reps > best.reps) return current
@@ -143,15 +161,15 @@ function Logger() {
                     setReps(bestSet.reps)
                     return
                 }
+            } else {
+                setRecommendation(null)
+                setWeight(0)
+                setReps(0)
             }
-
-            // Default if no previous data
-            setWeight(0)
-            setReps(0)
         }
 
-        fetchPreviousBest()
-    }, [selectedExercise, user, date])
+        fetchExerciseHistory()
+    }, [selectedExercise, user, date, selectedMuscle])
 
     const fetchLogs = async (sId) => {
         const { data } = await supabase
@@ -384,6 +402,84 @@ function Logger() {
                             </select>
                         </div>
                     </div>
+
+                    {/* Recommendation Badge & Popup */}
+                    {recommendation && (
+                        <div style={{ position: 'relative', marginBottom: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--secondary)', marginLeft: '0.5rem' }}>
+                                RECOMMENDATION
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setShowRecDetail(!showRecDetail)}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '20px',
+                                    border: 'none',
+                                    background: recommendation.type === 'weight' ? 'var(--primary)' :
+                                        recommendation.type === 'reps' ? '#34c759' :
+                                            recommendation.type === 'cardio' ? '#007AFF' :
+                                                recommendation.type === 'deload' ? '#5856D6' :
+                                                    'var(--secondary)',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                                }}
+                            >
+                                <span>💡 {recommendation.type.toUpperCase()}</span>
+                                {recommendation.target && (
+                                    <span style={{ opacity: 0.9, fontWeight: 'normal', fontSize: '0.8rem' }}>
+                                        • {recommendation.target.weight}kg x {recommendation.target.reps}
+                                    </span>
+                                )}
+                                <span style={{ fontSize: '0.7rem' }}>{showRecDetail ? '▼' : '▶'}</span>
+                            </button>
+
+                            {/* Popup Detail */}
+                            {showRecDetail && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '110%',
+                                    left: 0,
+                                    zIndex: 10,
+                                    width: '280px',
+                                    background: 'white',
+                                    padding: '1rem',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                                    border: '1px solid var(--border)',
+                                    animation: 'fadeIn 0.2s ease'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--foreground)' }}>Analysis</span>
+                                        <span style={{
+                                            fontSize: '0.7rem',
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            background: '#f2f2f7',
+                                            color: '#666'
+                                        }}>
+                                            {recommendation.confidence.toUpperCase()} CONFIDENCE
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize: '0.85rem', color: 'var(--secondary)', lineHeight: 1.4, marginBottom: 0 }}>
+                                        {recommendation.explanation}
+                                    </p>
+                                    <style jsx>{`
+                                        @keyframes fadeIn {
+                                            from { opacity: 0; transform: translateY(-5px); }
+                                            to { opacity: 1; transform: translateY(0); }
+                                        }
+                                    `}</style>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="log-input-group">
                         <div style={{ flex: 1 }}>
