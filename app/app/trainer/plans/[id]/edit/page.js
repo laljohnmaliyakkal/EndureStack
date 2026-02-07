@@ -82,11 +82,9 @@ export default function EditPlanPage({ params }) {
                 is_public: data.is_public
             })
 
-            // If public, enable Clone Mode
-            if (data.is_public) {
+            // If public, enable Clone Mode ONLY if not the creator
+            if (data.is_public && data.created_by !== user.id) {
                 setIsCloneMode(true)
-                // Optional: Append (Copy) to name? User asked to allow providing a name.
-                // leaving original name is fine, user can change it.
             }
 
             // Populate exercises
@@ -323,6 +321,21 @@ export default function EditPlanPage({ params }) {
                         />
                     </div>
                 </div>
+
+                {!isCloneMode && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <input
+                            type="checkbox"
+                            id="is_public"
+                            checked={planData.is_public}
+                            onChange={(e) => setPlanData({ ...planData, is_public: e.target.checked })}
+                            style={{ width: '1.2rem', height: '1.2rem' }}
+                        />
+                        <label htmlFor="is_public" style={{ cursor: 'pointer' }}>
+                            Make Public (Visible to Gym Members)
+                        </label>
+                    </div>
+                )}
 
                 {DAYS.map(day => (
                     <div key={day.number} className="card" style={{ padding: '1rem' }}>
