@@ -95,7 +95,12 @@ export default function ProgressPage() {
                 .sort((a, b) => new Date(b.date) - new Date(a.date))
 
             // Config: Default to 8-12 rep range, 2.5kg increment
-            const config = { minReps: 12, maxReps: 15, incrementKg: 2.5 }
+            const config = {
+                minReps: 12,
+                maxReps: 15,
+                incrementKg: 2.5,
+                muscleGroup: exerciseMap[name] || 'Other'
+            }
             const recommendation = getOverloadRecommendation(history, config)
 
             // Get last session comparison for context
@@ -134,6 +139,7 @@ export default function ProgressPage() {
             case 'reps': return '#34c759' // Green - Volume
             case 'deload': return '#5856D6' // Purple - Recovery
             case 'maintain': return 'var(--secondary)' // Gray
+            case 'cardio': return '#007AFF' // Blue - Endurance
             default: return 'var(--foreground)'
         }
     }
@@ -256,9 +262,19 @@ export default function ProgressPage() {
                                     {rec.recommendation.target && (
                                         <div style={{ padding: '0.5rem', background: 'var(--secondary-bg)', borderRadius: '8px', marginTop: '0.5rem' }}>
                                             <p style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginBottom: '0.25rem' }}>NEXT TARGET</p>
-                                            <p style={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                                                {rec.recommendation.target.weight}kg <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>x</span> {rec.recommendation.target.sets || '3'} <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>sets x</span> {rec.recommendation.target.reps} <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>reps</span>
-                                            </p>
+
+                                            {rec.recommendation.type === 'cardio' ? (
+                                                <p style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                    {rec.recommendation.target.reps} <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>mins</span>
+                                                    {rec.recommendation.target.weight > 0 && (
+                                                        <> <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>@ Lvl/Spd</span> {rec.recommendation.target.weight}</>
+                                                    )}
+                                                </p>
+                                            ) : (
+                                                <p style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                                                    {rec.recommendation.target.weight}kg <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>x</span> {rec.recommendation.target.sets || '3'} <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>sets x</span> {rec.recommendation.target.reps} <span style={{ color: 'var(--secondary)', fontWeight: 'normal' }}>reps</span>
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 
