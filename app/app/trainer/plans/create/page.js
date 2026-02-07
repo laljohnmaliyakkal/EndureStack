@@ -16,7 +16,7 @@ const DAYS = [
 ]
 
 export default function CreatePlanPage() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [planData, setPlanData] = useState({
@@ -97,7 +97,8 @@ export default function CreatePlanPage() {
                     name: planData.name,
                     description: planData.description,
                     created_by: user.id,
-                    is_public: planData.is_public
+                    is_public: planData.is_public,
+                    gym_id: profile?.gym_id
                 })
                 .select()
                 .single()
@@ -184,6 +185,18 @@ export default function CreatePlanPage() {
                             placeholder="Brief description of the plan..."
                         />
                     </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                        type="checkbox"
+                        id="is_public"
+                        checked={planData.is_public}
+                        onChange={(e) => setPlanData({ ...planData, is_public: e.target.checked })}
+                        style={{ width: '1.2rem', height: '1.2rem' }}
+                    />
+                    <label htmlFor="is_public" style={{ cursor: 'pointer' }}>
+                        Make Public (Visible to Gym Members)
+                    </label>
                 </div>
 
                 {DAYS.map(day => (

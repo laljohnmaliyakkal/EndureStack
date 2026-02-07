@@ -8,7 +8,7 @@ import ConfirmModal from '../../../../components/ConfirmModal'
 import Modal from '../../../../components/Modal'
 
 export default function UserPlanPage() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()
     const targetUserId = searchParams.get('userId') || user?.id
@@ -25,7 +25,7 @@ export default function UserPlanPage() {
         if (user && targetUserId) {
             fetchData()
         }
-    }, [user, targetUserId])
+    }, [user, targetUserId, profile]) // Profile added to deps to retry fetch if needed
 
     const fetchData = async () => {
         try {
@@ -72,6 +72,7 @@ export default function UserPlanPage() {
             }
 
             // 2. Fetch public plans (Always fetch to allow switching)
+            // Rely on RLS to filter by Gym ID + Global
             const { data: plans } = await supabase
                 .from('workout_plans')
                 .select('*')
@@ -205,6 +206,102 @@ export default function UserPlanPage() {
                 message: 'Error stopping plan: ' + error.message,
                 isAlert: true
             })
+            setLoading(false)
+        }
+    }
+
+    const handleForkPlan = async (planId) => {
+        setModalState({
+            isOpen: true,
+            title: 'Fork Plan',
+            message: 'Create a copy of this plan for yourself? You can then edit it.',
+            onConfirm: () => executeForkPlan(planId)
+        })
+    }
+
+    const executeForkPlan = async (planId) => {
+        setLoading(true)
+        try {
+            // 1. Fetch full plan details
+            const { data: originalPlan, error: fetchError } = await supabase
+                .from('workout_plans')
+                .select(`
+                    *,
+                    workout_plan_days (
+                        *,
+                        workout_plan_items (*)
+                    )
+                `)
+                .eq('id', planId)
+                .single()
+
+            if (fetchError) throw fetchError
+
+            // 2. Create new plan
+            const { data: newPlan, error: createError } = await supabase
+                .from('workout_plans')
+                .insert({
+                    name: `Copy of ${originalPlan.name}`,
+                    description: originalPlan.description,
+                    created_by: user.id,
+                    is_public: false,
+                    gym_id: profile?.gym_id
+                })
+                .select()
+                .single()
+
+            if (createError) throw createError
+
+            // 3. Create Days and Items
+            // Note: Parallelizing for speed
+            const dayPromises = originalPlan.workout_plan_days.map(async (day) => {
+                const { data: newDay, error: dayError } = await supabase
+                    .from('workout_plan_days')
+                    .insert({
+                        plan_id: newPlan.id,
+                        day_number: day.day_number,
+                        day_name: day.day_name
+                    })
+                    .select()
+                    .single()
+
+                if (dayError) throw dayError
+
+                if (day.workout_plan_items && day.workout_plan_items.length > 0) {
+                    const items = day.workout_plan_items.map(item => ({
+                        plan_day_id: newDay.id,
+                        workout_name: item.workout_name,
+                        muscle_group: item.muscle_group,
+                        sets: item.sets,
+                        reps: item.reps,
+                        order_index: item.order_index
+                    }))
+
+                    const { error: itemsError } = await supabase
+                        .from('workout_plan_items')
+                        .insert(items)
+
+                    if (itemsError) throw itemsError
+                }
+            })
+
+            await Promise.all(dayPromises)
+
+            setModalState({
+                isOpen: true,
+                title: 'Success',
+                message: 'Plan forked successfully! Check your "My Plans" in the Trainer Dashboard.',
+                isAlert: true
+            })
+        } catch (error) {
+            console.error('Forking error:', error)
+            setModalState({
+                isOpen: true,
+                title: 'Error',
+                message: 'Failed to fork plan: ' + error.message,
+                isAlert: true
+            })
+        } finally {
             setLoading(false)
         }
     }
@@ -413,7 +510,7 @@ export default function UserPlanPage() {
                             <div key={plan.id} className="card">
                                 <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{plan.name}</h3>
                                 <p style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>{plan.description}</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: profile?.role === 'trainer' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.5rem' }}>
                                     <button
                                         className="btn"
                                         style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
@@ -428,6 +525,16 @@ export default function UserPlanPage() {
                                     >
                                         Start Plan
                                     </button>
+                                    {profile?.role === 'trainer' && (
+                                        <button
+                                            className="btn"
+                                            style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                            onClick={() => handleForkPlan(plan.id)}
+                                            title="Create a copy of this plan"
+                                        >
+                                            Fork
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -459,7 +566,7 @@ export default function UserPlanPage() {
                     <div key={plan.id} className="card">
                         <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>{plan.name}</h3>
                         <p style={{ color: 'var(--secondary)', marginBottom: '1rem' }}>{plan.description}</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: profile?.role === 'trainer' ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.5rem' }}>
                             <button
                                 className="btn"
                                 style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
@@ -474,6 +581,16 @@ export default function UserPlanPage() {
                             >
                                 Start Plan
                             </button>
+                            {profile?.role === 'trainer' && (
+                                <button
+                                    className="btn"
+                                    style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}
+                                    onClick={() => handleForkPlan(plan.id)}
+                                    title="Create a copy of this plan"
+                                >
+                                    Fork
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
