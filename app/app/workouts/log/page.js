@@ -114,14 +114,14 @@ function Logger() {
 
     // Auto-populate from previous session & Calculate Recommendation
     useEffect(() => {
-        if (!selectedExercise || !user) return
+        if (!selectedExercise || !targetUserId) return
 
         const fetchExerciseHistory = async () => {
             // Fetch history for Overload Analysis (last 12 sessions)
             const { data, error } = await supabase
                 .from('workout_sessions')
                 .select('session_date, workout_logs!inner(weight, reps, workout_name)')
-                .eq('user_id', user.id)
+                .eq('user_id', targetUserId)
                 .eq('workout_logs.workout_name', selectedExercise)
                 .lt('session_date', date) // strictly before current selected date
                 .order('session_date', { ascending: false })
@@ -169,7 +169,7 @@ function Logger() {
         }
 
         fetchExerciseHistory()
-    }, [selectedExercise, user, date, selectedMuscle])
+    }, [selectedExercise, targetUserId, date, selectedMuscle])
 
     const fetchLogs = async (sId) => {
         const { data } = await supabase
