@@ -89,7 +89,7 @@ function Logger() {
     // Fetch or Create Session
     useEffect(() => {
         if (!targetUserId) return
-
+        // ... (existing getSession logic)
         const getSession = async () => {
             const { data, error } = await supabase
                 .from('workout_sessions')
@@ -108,6 +108,50 @@ function Logger() {
         }
         getSession()
     }, [date, targetUserId])
+
+    // Auto-populate from previous session
+    useEffect(() => {
+        if (!selectedExercise || !user) return
+
+        const fetchPreviousBest = async () => {
+            // Find latest session with this workout (excluding current date if needed, but 'latest' implies past usually)
+            // Actually, we want the LAST session before TODAY, or just the very last one logged?
+            // "previous session" usually means the one before this.
+
+            // Query strategy: workout_sessions -> inner join logs filtered by name -> order by date desc -> limit 1
+            const { data, error } = await supabase
+                .from('workout_sessions')
+                .select('session_date, workout_logs!inner(weight, reps, workout_name)')
+                .eq('user_id', user.id)
+                .eq('workout_logs.workout_name', selectedExercise)
+                .lt('session_date', date) // strictly before current selected date
+                .order('session_date', { ascending: false })
+                .limit(1)
+
+            if (data && data.length > 0) {
+                const prevLogs = data[0].workout_logs
+                // Find max weight, then max reps
+                const bestSet = prevLogs.reduce((best, current) => {
+                    if (!best) return current
+                    if (current.weight > best.weight) return current
+                    if (current.weight === best.weight && current.reps > best.reps) return current
+                    return best
+                }, null)
+
+                if (bestSet) {
+                    setWeight(bestSet.weight)
+                    setReps(bestSet.reps)
+                    return
+                }
+            }
+
+            // Default if no previous data
+            setWeight(0)
+            setReps(0)
+        }
+
+        fetchPreviousBest()
+    }, [selectedExercise, user, date])
 
     const fetchLogs = async (sId) => {
         const { data } = await supabase
