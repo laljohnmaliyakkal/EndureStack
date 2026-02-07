@@ -8,6 +8,8 @@ import { getOverloadRecommendation, evaluateProgress, detectSystemicFatigue } fr
 export default function ProgressPage() {
     const { user } = useAuth()
     const [stats, setStats] = useState([])
+    const [selectedMuscle, setSelectedMuscle] = useState('All')
+    const [muscleGroups, setMuscleGroups] = useState([])
     const [recommendations, setRecommendations] = useState([])
     const [systemicFatigue, setSystemicFatigue] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -29,6 +31,15 @@ export default function ProgressPage() {
     }
 
     const fetchAnalysis = async () => {
+        // 0. Fetch Workouts Catalog for mapping
+        const { data: catalog } = await supabase.from('workouts').select('name, muscle_group')
+        const exerciseMap = {}
+        if (catalog) {
+            catalog.forEach(w => {
+                exerciseMap[w.name] = w.muscle_group || 'Other'
+            })
+        }
+
         // 1. Fetch User Sessions first to get IDs and Dates
         const { data: sessions, error: sessionError } = await supabase
             .from('workout_sessions')
@@ -95,6 +106,7 @@ export default function ProgressPage() {
 
             analyzedData.push({
                 name,
+                muscleGroup: exerciseMap[name] || 'Other',
                 recommendation,
                 lastSession: history[0],
                 progressContext
@@ -105,8 +117,16 @@ export default function ProgressPage() {
         const isFatigued = detectSystemicFatigue(analyzedData)
         setSystemicFatigue(isFatigued)
 
+        // Extract Muscle Groups for Filter
+        const groups = ['All', ...new Set(analyzedData.map(d => d.muscleGroup))].sort()
+        setMuscleGroups(groups)
+
         setRecommendations(analyzedData.sort((a, b) => a.name.localeCompare(b.name)))
     }
+
+    const filteredRecommendations = selectedMuscle === 'All'
+        ? recommendations
+        : recommendations.filter(rec => rec.muscleGroup === selectedMuscle)
 
     const getRecColor = (type) => {
         switch (type) {
@@ -121,6 +141,33 @@ export default function ProgressPage() {
     return (
         <div style={{ paddingBottom: '4rem' }}>
             <h1 style={{ marginBottom: '2rem', fontWeight: 'bold' }}>Progress & Recommendations</h1>
+
+            {/* Muscle Group Filter */}
+            {!loading && recommendations.length > 0 && (
+                <div style={{ marginBottom: '2rem', overflowX: 'auto', whiteSpace: 'nowrap', paddingBottom: '0.5rem' }}>
+                    {muscleGroups.map(group => (
+                        <button
+                            key={group}
+                            onClick={() => setSelectedMuscle(group)}
+                            style={{
+                                display: 'inline-block',
+                                padding: '0.5rem 1rem',
+                                marginRight: '0.5rem',
+                                borderRadius: '20px',
+                                border: 'none',
+                                background: selectedMuscle === group ? 'var(--primary)' : 'var(--secondary-bg)',
+                                color: selectedMuscle === group ? 'white' : 'var(--foreground)',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '0.9rem',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {group}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {loading ? (
                 <p>Analyzing workout data...</p>
@@ -142,15 +189,22 @@ export default function ProgressPage() {
                     )}
 
                     {/* Recommendations Grid */}
-                    <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', color: 'var(--secondary)' }}>Next Session Targets</h2>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h2 style={{ fontSize: '1.25rem', color: 'var(--secondary)', margin: 0 }}>Next Session Targets</h2>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--secondary)' }}>{filteredRecommendations.length} Exercises</span>
+                    </div>
 
                     {recommendations.length === 0 ? (
                         <div className="card" style={{ padding: '2rem', textAlign: 'center', marginBottom: '3rem' }}>
                             <p>No enough data to generate recommendations. Log more workouts!</p>
                         </div>
+                    ) : filteredRecommendations.length === 0 ? (
+                        <div className="card" style={{ padding: '2rem', textAlign: 'center', marginBottom: '3rem' }}>
+                            <p>No exercises found for {selectedMuscle}.</p>
+                        </div>
                     ) : (
                         <div className="workout-details-grid" style={{ marginBottom: '3rem' }}>
-                            {recommendations.map((rec) => (
+                            {filteredRecommendations.map((rec) => (
                                 <div key={rec.name} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: `4px solid ${getRecColor(rec.recommendation.type)}` }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                                         <h3 style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{rec.name}</h3>
