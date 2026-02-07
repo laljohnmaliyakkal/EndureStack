@@ -353,24 +353,51 @@ function Logger() {
 
                 <form onSubmit={handleAddSet}>
                     <div className="log-form-grid">
-                        <div>
+                        <div style={{ gridColumn: '1 / -1' }}>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>Muscle Group</label>
-                            <select
-                                className="input"
-                                value={selectedMuscle}
-                                onChange={e => {
-                                    setSelectedMuscle(e.target.value)
-                                    setSelectedExercise('') // Reset exercise when muscle changes
-                                }}
-                                required
-                            >
-                                <option value="">Select Muscle</option>
+                            <div style={{
+                                display: 'flex',
+                                gap: '0.5rem',
+                                overflowX: 'auto',
+                                paddingBottom: '0.5rem',
+                                width: '100%',
+                                maxWidth: 'calc(100vw - 5rem)', // Force constraint for mobile
+                                scrollbarWidth: 'none', /* Firefox */
+                                msOverflowStyle: 'none'  /* IE 10+ */
+                            }}>
+                                <style jsx>{`
+                                    div::-webkit-scrollbar {
+                                        display: none; /* Chrome/Safari/Webkit */
+                                    }
+                                `}</style>
                                 {muscleGroups.map(g => (
-                                    <option key={g} value={g}>{g}</option>
+                                    <button
+                                        key={g}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedMuscle(g)
+                                            setSelectedExercise('')
+                                        }}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            borderRadius: '2rem',
+                                            border: '1px solid transparent',
+                                            background: selectedMuscle === g ? 'var(--primary)' : 'var(--input-bg)',
+                                            color: selectedMuscle === g ? 'white' : 'var(--secondary)',
+                                            fontWeight: '600',
+                                            fontSize: '0.9rem',
+                                            whiteSpace: 'nowrap',
+                                            transition: 'all 0.2s ease',
+                                            flexShrink: 0
+                                        }}
+                                    >
+                                        {g}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
                         </div>
-                        <div>
+
+                        <div style={{ gridColumn: '1 / -1' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                 <label style={{ display: 'block' }}>Exercise</label>
                                 <button
