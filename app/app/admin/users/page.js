@@ -23,6 +23,14 @@ export default function UsersPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [viewMode, setViewMode] = useState(initialMode)
 
+    // Fee Payment State
+    const [gymFee, setGymFee] = useState(0)
+    const [selectedClients, setSelectedClients] = useState([])
+    const [paymentFilter, setPaymentFilter] = useState('all') // 'all', 'paid', 'pending'
+    const [feeModalOpen, setFeeModalOpen] = useState(false)
+    const [feeNotes, setFeeNotes] = useState('')
+    const [feeLoading, setFeeLoading] = useState(false)
+
     // Assignment State
     const [trainers, setTrainers] = useState([])
     const [assignments, setAssignments] = useState({})
@@ -53,6 +61,10 @@ export default function UsersPage() {
         }
 
         const gymId = adminDetails.gym_id
+
+        // Fetch gym details for platform fee
+        const { data: gymData } = await supabase.from('gyms').select('platform_fee').eq('id', gymId).single()
+        if (gymData) setGymFee(gymData.platform_fee || 0)
 
         // 2. Get Users + Trainers
         const { data } = await supabase
@@ -256,8 +268,54 @@ export default function UsersPage() {
     const filteredUsers = users.filter(u => {
         const matchesSearch = u.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesRole = u.role === viewMode
-        return matchesSearch && matchesRole
+        let matchesPayment = true
+        if (viewMode === 'user' && paymentFilter !== 'all') {
+            const status = u.payment_status || 'pending'
+            matchesPayment = status === paymentFilter
+        }
+        return matchesSearch && matchesRole && matchesPayment
     })
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            const clientIds = filteredUsers.filter(u => u.role === 'user').map(u => u.user_id)
+            setSelectedClients(clientIds)
+        } else {
+            setSelectedClients([])
+        }
+    }
+
+    const handleSelectClient = (userId) => {
+        setSelectedClients(prev => 
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        )
+    }
+
+    const handleProcessPayment = async () => {
+        setFeeLoading(true)
+        try {
+            const { data: adminDetails } = await supabase.from('profiles').select('gym_id').eq('user_id', user.id).single()
+            if (!adminDetails?.gym_id) throw new Error('Gym ID not found')
+
+            const { error } = await supabase.rpc('process_platform_fee_payments', {
+                p_client_ids: selectedClients,
+                p_gym_id: adminDetails.gym_id,
+                p_amount: gymFee,
+                p_notes: feeNotes
+            })
+
+            if (error) throw error
+
+            setAlertModal({ isOpen: true, title: 'Success', message: 'Payments processed successfully!' })
+            setFeeModalOpen(false)
+            setSelectedClients([])
+            fetchUsers() // Refresh list to see updated status
+        } catch (error) {
+            setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to process payments: ' + error.message })
+        } finally {
+            setFeeLoading(false)
+        }
+    }
 
     // Helper to get trainer name
     const getTrainerName = (trainerId) => {
@@ -286,7 +344,7 @@ export default function UsersPage() {
                 />
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
-                        onClick={() => setViewMode('user')}
+                        onClick={() => { setViewMode('user'); setSelectedClients([]); }}
                         className="btn"
                         style={{
                             backgroundColor: viewMode === 'user' ? 'var(--primary)' : 'var(--card-bg)',
@@ -297,7 +355,7 @@ export default function UsersPage() {
                         Clients
                     </button>
                     <button
-                        onClick={() => setViewMode('trainer')}
+                        onClick={() => { setViewMode('trainer'); setSelectedClients([]); }}
                         className="btn"
                         style={{
                             backgroundColor: viewMode === 'trainer' ? 'var(--primary)' : 'var(--card-bg)',
@@ -308,14 +366,53 @@ export default function UsersPage() {
                         Trainers
                     </button>
                 </div>
+                {viewMode === 'user' && (
+                    <select
+                        className="input"
+                        value={paymentFilter}
+                        onChange={(e) => { setPaymentFilter(e.target.value); setSelectedClients([]); }}
+                        style={{ maxWidth: '200px', marginBottom: 0 }}
+                    >
+                        <option value="all">All Status</option>
+                        <option value="pending">Unpaid / Pending</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                )}
             </div>
+
+            {/* Bulk Actions */}
+            {viewMode === 'user' && selectedClients.length > 0 && (
+                <div style={{ padding: '1rem', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: '0.5rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--foreground)' }}>
+                        {selectedClients.length} clients selected
+                    </span>
+                    <button 
+                        className="btn" 
+                        style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '0.6rem 1.2rem', fontWeight: 'bold' }}
+                        onClick={() => { setFeeNotes(''); setFeeModalOpen(true); }}
+                    >
+                        Pay Platform Fee
+                    </button>
+                </div>
+            )}
 
             {/* Table */}
             <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--foreground)' }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                            {viewMode === 'user' && (
+                                <th style={{ padding: '0.75rem', width: '40px' }}>
+                                    <input 
+                                        type="checkbox" 
+                                        onChange={handleSelectAll}
+                                        checked={selectedClients.length > 0 && selectedClients.length === filteredUsers.filter(u => u.role === 'user').length}
+                                        style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                    />
+                                </th>
+                            )}
                             <th style={{ padding: '0.75rem' }}>Name</th>
+                            {viewMode === 'user' && <th style={{ padding: '0.75rem' }}>Status</th>}
                             {viewMode === 'user' && <th style={{ padding: '0.75rem' }}>Assigned To</th>}
                             {viewMode === 'trainer' && <th style={{ padding: '0.75rem' }}>Clients</th>}
                             <th style={{ padding: '0.75rem' }}>Actions</th>
@@ -329,12 +426,31 @@ export default function UsersPage() {
 
                             return (
                                 <tr key={u.user_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    {viewMode === 'user' && (
+                                        <td style={{ padding: '0.75rem', width: '40px' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={selectedClients.includes(u.user_id)}
+                                                onChange={() => handleSelectClient(u.user_id)}
+                                                style={{ accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                            />
+                                        </td>
+                                    )}
                                     <td style={{ padding: '0.75rem' }}>
                                         <Link href={`/app/admin/users/${u.user_id}`} style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                             <Avatar name={u.full_name} userId={u.user_id} url={u.avatar_url} size={32} />
                                             {u.full_name}
                                         </Link>
                                     </td>
+                                    {viewMode === 'user' && (
+                                        <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>
+                                            {(u.payment_status || 'pending') === 'paid' ? (
+                                                <span style={{ backgroundColor: 'rgba(var(--success-rgb), 0.2)', color: 'var(--success)', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>Paid</span>
+                                            ) : (
+                                                <span style={{ backgroundColor: 'rgba(var(--danger-rgb), 0.2)', color: 'var(--danger)', padding: '0.2rem 0.5rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>Pending</span>
+                                            )}
+                                        </td>
+                                    )}
                                     {viewMode === 'user' && (
                                         <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>
                                             {assignedTrainerName ? (
@@ -354,31 +470,48 @@ export default function UsersPage() {
                                     <td style={{ padding: '0.75rem', display: 'flex', gap: '0.5rem' }}>
                                         {/* Role Management */}
                                         {u.role === 'user' && (
-                                            <>
+                                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                {(u.payment_status || 'pending') !== 'paid' && (
+                                                    <button onClick={() => { setSelectedClients([u.user_id]); setFeeNotes(''); setFeeModalOpen(true); }} className="btn" style={{ fontSize: '0.8rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', padding: '0.4rem 0.8rem' }}>
+                                                        Pay Fee
+                                                    </button>
+                                                )}
                                                 {!assignedTrainerId && (
                                                     <button onClick={() => handlePromote(u.user_id, 'trainer')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--success)', padding: '0.3rem 0.6rem' }}>
                                                         Promote
                                                     </button>
                                                 )}
 
-                                                {assignedTrainerId ? (
+                                                {/* Assignment Restriction */}
+                                                {(u.payment_status || 'pending') !== 'paid' ? (
                                                     <button
-                                                        onClick={() => openAssignModal(u, assignedTrainerId)}
+                                                        title="Client must pay platform fee before being assigned"
                                                         className="btn"
-                                                        style={{ fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--foreground)', padding: '0.3rem 0.6rem' }}
+                                                        style={{ fontSize: '0.8rem', opacity: 0.5, cursor: 'not-allowed', padding: '0.3rem 0.6rem' }}
+                                                        disabled
                                                     >
-                                                        Transfer
+                                                        {assignedTrainerId ? 'Transfer' : 'Assign Trainer'}
                                                     </button>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => openAssignModal(u, null)}
-                                                        className="btn"
-                                                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
-                                                    >
-                                                        Assign Trainer
-                                                    </button>
+                                                    assignedTrainerId ? (
+                                                        <button
+                                                            onClick={() => openAssignModal(u, assignedTrainerId)}
+                                                            className="btn"
+                                                            style={{ fontSize: '0.8rem', background: 'transparent', border: '1px solid var(--border)', color: 'var(--foreground)', padding: '0.3rem 0.6rem' }}
+                                                        >
+                                                            Transfer
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => openAssignModal(u, null)}
+                                                            className="btn"
+                                                            style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
+                                                        >
+                                                            Assign Trainer
+                                                        </button>
+                                                    )
                                                 )}
-                                            </>
+                                            </div>
                                         )}
                                         {u.role === 'trainer' && (
                                             <button onClick={() => handlePromote(u.user_id, 'user')} className="btn" style={{ fontSize: '0.8rem', background: 'var(--danger)', padding: '0.3rem 0.6rem' }}>
@@ -391,7 +524,7 @@ export default function UsersPage() {
                         })}
                         {!loading && filteredUsers.length === 0 && (
                             <tr>
-                                <td colSpan={viewMode === 'user' ? 4 : 3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary)' }}>
+                                <td colSpan={viewMode === 'user' ? 6 : 3} style={{ padding: '2rem', textAlign: 'center', color: 'var(--secondary)' }}>
                                     No users found.
                                 </td>
                             </tr>
@@ -451,6 +584,34 @@ export default function UsersPage() {
                             <option key={t.user_id} value={t.user_id}>{t.full_name}</option>
                         ))}
                     </select>
+                </div>
+            </Modal>
+
+            {/* Fee Payment Modal */}
+            <Modal
+                isOpen={feeModalOpen}
+                onClose={() => setFeeModalOpen(false)}
+                title="Process Platform Fee"
+                footer={
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', width: '100%' }}>
+                        <button onClick={() => setFeeModalOpen(false)} className="btn" style={{ backgroundColor: 'var(--secondary)' }} disabled={feeLoading}>Cancel</button>
+                        <button onClick={handleProcessPayment} className="btn" disabled={feeLoading}>
+                            {feeLoading ? 'Processing...' : `Pay $${(gymFee * selectedClients.length).toFixed(2)}`}
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ marginBottom: '1.5rem' }}>
+                    <p style={{ marginBottom: '1rem' }}>You are processing payments for <strong>{selectedClients.length}</strong> client(s).</p>
+                    <p style={{ marginBottom: '1rem', color: 'var(--secondary)' }}>Amount per client: <strong>${gymFee.toFixed(2)}</strong></p>
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>Notes (Optional)</label>
+                    <input
+                        type="text"
+                        className="input"
+                        placeholder="e.g. Paid in cash, Q2 Fee, etc."
+                        value={feeNotes}
+                        onChange={e => setFeeNotes(e.target.value)}
+                    />
                 </div>
             </Modal>
 
