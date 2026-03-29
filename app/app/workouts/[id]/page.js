@@ -64,7 +64,7 @@ export default function WorkoutDetailsPage({ params }) {
             // Check if this was the last log
             const remaining = session.workout_logs.filter(l => l.id !== logId)
             if (remaining.length === 0) {
-                router.push('/app/workouts')
+                router.push(`/app/workouts?userId=${session.user_id}`)
             } else {
                 fetchSession() // Refresh data
             }
@@ -95,7 +95,7 @@ export default function WorkoutDetailsPage({ params }) {
             // Check if there are any other exercises left
             const remaining = session.workout_logs.filter(l => l.workout_name !== workoutName)
             if (remaining.length === 0) {
-                router.push('/app/workouts')
+                router.push(`/app/workouts?userId=${session.user_id}`)
             } else {
                 fetchSession()
             }
@@ -144,7 +144,7 @@ export default function WorkoutDetailsPage({ params }) {
 
     return (
         <div>
-            <Link href="/app/workouts" className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)', display: 'inline-block', marginBottom: '1.5rem' }}>
+            <Link href={`/app/workouts?userId=${session.user_id}`} className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)', display: 'inline-block', marginBottom: '1.5rem' }}>
                 &larr; Back to Workouts
             </Link>
 

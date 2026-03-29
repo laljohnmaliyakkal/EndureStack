@@ -32,6 +32,12 @@ export default function Profile() {
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false)
     const router = useRouter()
 
+    // Partner State
+    const [partner, setPartner] = useState(null)
+    const [partnerEmail, setPartnerEmail] = useState('')
+    const [partnerLoading, setPartnerLoading] = useState(false)
+    const [partnerMessage, setPartnerMessage] = useState('')
+
     // Generate avatar list
     const avatars = Array.from({ length: 17 }, (_, i) => `/avatars/avatar_${i + 1}.png`)
 
@@ -83,6 +89,18 @@ export default function Profile() {
                         setGymSearch(myGym.name + ', ' + myGym.address)
                     }
                 }
+
+                // Fetch Partner Details
+                if (profile.partner_id) {
+                    const { data: partnerData } = await supabase
+                        .from('profiles')
+                        .select('full_name, avatar_url')
+                        .eq('user_id', profile.partner_id)
+                        .single()
+                    if (partnerData) {
+                        setPartner(partnerData)
+                    }
+                }
             } else if (user) {
                 // Fallback for new users (no profile yet)
                 setFormData(prev => ({
@@ -129,6 +147,42 @@ export default function Profile() {
             setMessage('Error updating profile: ' + err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleLinkPartner = async (e) => {
+        e.preventDefault()
+        setPartnerLoading(true)
+        setPartnerMessage('')
+        try {
+            const { error } = await supabase.rpc('link_partner_by_email', {
+                p_email: partnerEmail
+            })
+            if (error) throw error
+            setPartnerMessage('Partner linked successfully!')
+            await refreshProfile()
+            // Reload page to re-run initial fetch or rely on refreshProfile triggering useEffect
+            window.location.reload()
+        } catch (err) {
+            setPartnerMessage('Error linking partner: ' + err.message)
+        } finally {
+            setPartnerLoading(false)
+        }
+    }
+
+    const handleUnlinkPartner = async () => {
+        if (!confirm('Are you sure you want to unlink your partner?')) return
+        setPartnerLoading(true)
+        try {
+            const { error } = await supabase.rpc('unlink_partner')
+            if (error) throw error
+            setPartner(null)
+            await refreshProfile()
+            window.location.reload()
+        } catch (err) {
+            alert('Error unlinking partner: ' + err.message)
+        } finally {
+            setPartnerLoading(false)
         }
     }
 
@@ -436,7 +490,56 @@ export default function Profile() {
                         </div>
                     )}
 
-                    <button type="submit" className="btn" disabled={loading}>
+                    {/* Partner Section */}
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                        <h3 style={{ marginBottom: '1rem', color: 'var(--primary)' }}>Workout Partner</h3>
+                        
+                        {partnerMessage && (
+                            <div style={{
+                                padding: '1rem', borderRadius: '0.375rem', marginBottom: '1rem',
+                                backgroundColor: partnerMessage.includes('Error') ? '#7f1d1d' : '#14532d',
+                                color: partnerMessage.includes('Error') ? '#fca5a5' : '#86efac'
+                            }}>
+                                {partnerMessage}
+                            </div>
+                        )}
+
+                        {profile?.partner_id && partner ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', border: '1px solid var(--border)', borderRadius: '0.5rem', background: 'var(--card-bg)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <Avatar url={partner.avatar_url} userId={profile.partner_id} name={partner.full_name} size={48} />
+                                    <div>
+                                        <p style={{ fontWeight: 'bold', margin: 0 }}>{partner.full_name}</p>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--secondary)', margin: 0 }}>Linked Partner</p>
+                                    </div>
+                                </div>
+                                <button type="button" onClick={handleUnlinkPartner} disabled={partnerLoading} className="btn" style={{ background: 'var(--danger)', padding: '0.5rem 1rem' }}>
+                                    Unlink
+                                </button>
+                            </div>
+                        ) : (
+                            <div>
+                                <p style={{ color: 'var(--secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                                    Link your account with a workout partner to log each other's progress and view their workouts.
+                                </p>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <input
+                                        type="email"
+                                        className="input"
+                                        placeholder="Partner's Email Address"
+                                        value={partnerEmail}
+                                        onChange={e => setPartnerEmail(e.target.value)}
+                                        style={{ marginBottom: 0, flex: 1 }}
+                                    />
+                                    <button type="button" onClick={handleLinkPartner} disabled={partnerLoading || !partnerEmail} className="btn" style={{ whiteSpace: 'nowrap' }}>
+                                        {partnerLoading ? 'Linking...' : 'Link Partner'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <button type="submit" className="btn" disabled={loading} style={{ marginTop: '1.5rem' }}>
                         {loading ? 'Saving...' : 'Save Changes'}
                     </button>
                 </form>
