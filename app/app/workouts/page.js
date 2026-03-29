@@ -6,21 +6,35 @@ import { useAuth } from '../../../components/AuthProvider'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 
 function WorkoutsContent() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const searchParams = useSearchParams()
+    const router = useRouter()
     const filter = searchParams.get('filter')
+    const targetUserId = searchParams.get('userId') || user?.id
     const [sessions, setSessions] = useState([])
+    const [partner, setPartner] = useState(null)
 
     useEffect(() => {
-        if (user) {
+        if (profile?.partner_id) {
+            const fetchPartner = async () => {
+                const { data } = await supabase.from('profiles').select('full_name').eq('user_id', profile.partner_id).single()
+                if (data) setPartner({ ...data, id: profile.partner_id })
+            }
+            fetchPartner()
+        }
+    }, [profile])
+
+    useEffect(() => {
+        if (user && targetUserId) {
             console.log('Filtering workouts with:', filter)
             const fetchSessions = async () => {
                 let query = supabase
                     .from('workout_sessions')
                     .select('*, workout_logs(*)')
-                    .eq('user_id', user.id)
+                    .eq('user_id', targetUserId)
 
                 const today = new Date().toISOString().split('T')[0]
                 console.log('Comparison Date (Today):', today)
@@ -43,12 +57,13 @@ function WorkoutsContent() {
             }
             fetchSessions()
         }
-    }, [user?.id, filter])
+    }, [user?.id, targetUserId, filter])
 
     const getTitle = () => {
-        if (filter === 'future') return 'Upcoming Workouts'
-        if (filter === 'completed') return 'Completed Workouts'
-        return 'My Workouts'
+        const prefix = targetUserId === partner?.id ? `${partner.full_name}'s ` : 'My '
+        if (filter === 'future') return `${prefix}Upcoming Workouts`
+        if (filter === 'completed') return `${prefix}Completed Workouts`
+        return `${prefix}Workouts`
     }
 
     return (
@@ -56,21 +71,50 @@ function WorkoutsContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     {(filter === 'future' || filter === 'completed') && (
-                        <Link href="/app/dashboard" style={{ textDecoration: 'none', color: 'var(--secondary)', fontSize: '1.5rem' }}>
+                        <Link href={`/app/dashboard?userId=${targetUserId}`} style={{ textDecoration: 'none', color: 'var(--secondary)', fontSize: '1.5rem' }}>
                             &larr;
                         </Link>
                     )}
                     <h1>{getTitle()}</h1>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <Link href="/app/workouts/plan" className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-                        My Plan
+                    <Link href={`/app/workouts/plan?userId=${targetUserId}`} className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
+                        {targetUserId === partner?.id ? `${partner.full_name}'s Plan` : 'My Plan'}
                     </Link>
-                    <Link href="/app/workouts/log" className="btn">
+                    <Link href={`/app/workouts/log?userId=${targetUserId}`} className="btn">
                         Log Workout
                     </Link>
                 </div>
             </div>
+
+            {partner && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <button 
+                        onClick={() => router.push(`/app/workouts?userId=${user?.id}${filter ? '&filter=' + filter : ''}`)}
+                        className="btn" 
+                        style={{ 
+                            flex: 1, 
+                            background: targetUserId === user?.id ? 'var(--primary)' : 'var(--card-bg)', 
+                            color: targetUserId === user?.id ? 'white' : 'var(--foreground)',
+                            border: targetUserId === user?.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                        }}
+                    >
+                        Me
+                    </button>
+                    <button 
+                        onClick={() => router.push(`/app/workouts?userId=${partner.id}${filter ? '&filter=' + filter : ''}`)}
+                        className="btn" 
+                        style={{ 
+                            flex: 1, 
+                            background: targetUserId === partner.id ? 'var(--primary)' : 'var(--card-bg)', 
+                            color: targetUserId === partner.id ? 'white' : 'var(--foreground)',
+                            border: targetUserId === partner.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                        }}
+                    >
+                        {partner.full_name}
+                    </button>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gap: '1rem' }}>
                 {sessions.map(session => (

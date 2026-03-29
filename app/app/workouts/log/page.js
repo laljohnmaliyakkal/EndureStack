@@ -9,7 +9,7 @@ import AddExerciseModal from './AddExerciseModal'
 import { getOverloadRecommendation } from '../../../../lib/progressiveOverload'
 
 function Logger() {
-    const { user } = useAuth()
+    const { user, profile } = useAuth()
     const searchParams = useSearchParams()
     const router = useRouter()
 
@@ -19,6 +19,19 @@ function Logger() {
     const [sessionId, setSessionId] = useState(null)
     const [logs, setLogs] = useState([])
     const [loading, setLoading] = useState(false)
+
+    // Partner Support
+    const [partner, setPartner] = useState(null)
+
+    useEffect(() => {
+        if (profile?.partner_id) {
+            const fetchPartner = async () => {
+                const { data } = await supabase.from('profiles').select('full_name').eq('user_id', profile.partner_id).single()
+                if (data) setPartner({ ...data, id: profile.partner_id })
+            }
+            fetchPartner()
+        }
+    }, [profile])
 
     // Catalog Data
     const [availableWorkouts, setAvailableWorkouts] = useState([])
@@ -339,6 +352,35 @@ function Logger() {
     return (
         <div className="log-workout-container">
             <h1 style={{ marginBottom: '1.5rem' }}>Log Workout</h1>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <button 
+                    onClick={() => router.push(`/app/workouts/log?userId=${user?.id}&date=${date}`)}
+                    className="btn" 
+                    style={{ 
+                        flex: 1, 
+                        background: targetUserId === user?.id ? 'var(--primary)' : 'var(--card-bg)', 
+                        color: targetUserId === user?.id ? 'white' : 'var(--foreground)',
+                        border: targetUserId === user?.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                    }}
+                >
+                    Me
+                </button>
+                {partner && (
+                    <button 
+                        onClick={() => router.push(`/app/workouts/log?userId=${partner.id}&date=${date}`)}
+                        className="btn" 
+                        style={{ 
+                            flex: 1, 
+                            background: targetUserId === partner.id ? 'var(--primary)' : 'var(--card-bg)', 
+                            color: targetUserId === partner.id ? 'white' : 'var(--foreground)',
+                            border: targetUserId === partner.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                        }}
+                    >
+                        {partner.full_name}
+                    </button>
+                )}
+            </div>
 
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <div style={{ marginBottom: '1rem' }}>
