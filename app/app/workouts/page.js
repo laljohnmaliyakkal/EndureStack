@@ -79,6 +79,8 @@ function WorkoutsContent() {
         return `${prefix}Workouts`
     }
 
+    const getFirstName = (fullName) => fullName ? fullName.split(' ')[0] : ''
+
     return (
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -92,7 +94,7 @@ function WorkoutsContent() {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <Link href={`/app/workouts/plan?userId=${targetUserId}`} className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-                        {targetUserId === user?.id ? 'My Plan' : `${targetUser?.full_name || 'Client'}'s Plan`}
+                        {targetUserId === user?.id ? 'My Plan' : `${getFirstName(targetUser?.full_name) || 'Client'}'s Plan`}
                     </Link>
                     <Link href={`/app/workouts/log?userId=${targetUserId}`} className="btn">
                         Log Workout
@@ -112,7 +114,7 @@ function WorkoutsContent() {
                             border: '1px solid var(--primary)' 
                         }}
                     >
-                        {targetUserId === user?.id ? 'Me' : (targetUser?.full_name || 'Client')}
+                        {targetUserId === user?.id ? 'Me' : (getFirstName(targetUser?.full_name) || 'Client')}
                     </button>
                     <button 
                         onClick={() => router.push(`/app/workouts?userId=${partner.id}${filter ? '&filter=' + filter : ''}`)}
@@ -124,7 +126,7 @@ function WorkoutsContent() {
                             border: '1px solid var(--border)' 
                         }}
                     >
-                        {partner.full_name}
+                        {getFirstName(partner.full_name)}
                     </button>
                 </div>
             )}
