@@ -49,11 +49,27 @@ export default function AppLayout({ children }) {
     // Don't show Navbar if no profile (onboard mode)
     const showNavbar = profile !== null
 
+    const isUnpaidClient = profile?.role === 'user' && (profile.payment_status || 'pending') !== 'paid'
+    const isProfilePage = pathname === '/app/profile'
+
     return (
         <div>
-            {showNavbar && <Navbar />}
+            {showNavbar && !isUnpaidClient && <Navbar />}
             <main className="container">
-                {children}
+                {isUnpaidClient && !isProfilePage ? (
+                    <div className="card" style={{ padding: '3rem 2rem', textAlign: 'center', marginTop: '10vh', maxWidth: '500px', margin: '10vh auto' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                        <h2 style={{ marginBottom: '1rem', color: 'var(--danger)' }}>Access Restricted</h2>
+                        <p style={{ marginBottom: '1.5rem', color: 'var(--foreground)', fontSize: '1.1rem' }}>
+                            Your platform fee payment is currently pending.
+                        </p>
+                        <p style={{ color: 'var(--secondary)', lineHeight: '1.5' }}>
+                            To unlock EndureStack workouts, logging, and plans, please contact your Gym Administrator to process your payment.
+                        </p>
+                    </div>
+                ) : (
+                    children
+                )}
             </main>
         </div>
     )
