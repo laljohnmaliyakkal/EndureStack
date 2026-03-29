@@ -362,6 +362,8 @@ function Logger() {
         exercises[log.workout_name].push(log)
     })
 
+    const getFirstName = (fullName) => fullName ? fullName.split(' ')[0] : ''
+
     return (
         <div className="log-workout-container">
             <h1 style={{ marginBottom: '1.5rem' }}>Log Workout</h1>
@@ -377,7 +379,7 @@ function Logger() {
                         border: '1px solid var(--primary)' 
                     }}
                 >
-                    {targetUserId === user?.id ? 'Me' : (targetUser?.full_name || 'Client')}
+                    {targetUserId === user?.id ? 'Me' : (getFirstName(targetUser?.full_name) || 'Client')}
                 </button>
                 {partner && (
                     <button 
@@ -390,7 +392,7 @@ function Logger() {
                             border: '1px solid var(--border)' 
                         }}
                     >
-                        {partner.full_name}
+                        {getFirstName(partner.full_name)}
                     </button>
                 )}
             </div>
