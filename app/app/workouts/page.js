@@ -16,16 +16,29 @@ function WorkoutsContent() {
     const targetUserId = searchParams.get('userId') || user?.id
     const [sessions, setSessions] = useState([])
     const [partner, setPartner] = useState(null)
+    const [targetUser, setTargetUser] = useState(null)
 
     useEffect(() => {
-        if (profile?.partner_id) {
-            const fetchPartner = async () => {
-                const { data } = await supabase.from('profiles').select('full_name').eq('user_id', profile.partner_id).single()
-                if (data) setPartner({ ...data, id: profile.partner_id })
+        if (targetUserId) {
+            const fetchProfiles = async () => {
+                const { data: targetProfile } = await supabase.from('profiles').select('full_name, partner_id').eq('user_id', targetUserId).single()
+                
+                if (targetProfile) {
+                    setTargetUser({ full_name: targetProfile.full_name, id: targetUserId })
+                    
+                    if (targetProfile.partner_id) {
+                        const { data: partnerProfile } = await supabase.from('profiles').select('full_name').eq('user_id', targetProfile.partner_id).single()
+                        if (partnerProfile) {
+                            setPartner({ full_name: partnerProfile.full_name, id: targetProfile.partner_id })
+                        }
+                    } else {
+                        setPartner(null)
+                    }
+                }
             }
-            fetchPartner()
+            fetchProfiles()
         }
-    }, [profile])
+    }, [targetUserId])
 
     useEffect(() => {
         if (user && targetUserId) {
@@ -60,7 +73,7 @@ function WorkoutsContent() {
     }, [user?.id, targetUserId, filter])
 
     const getTitle = () => {
-        const prefix = targetUserId === partner?.id ? `${partner.full_name}'s ` : 'My '
+        const prefix = targetUserId === user?.id ? 'My ' : `${targetUser?.full_name || 'Client'}'s `
         if (filter === 'future') return `${prefix}Upcoming Workouts`
         if (filter === 'completed') return `${prefix}Completed Workouts`
         return `${prefix}Workouts`
@@ -79,7 +92,7 @@ function WorkoutsContent() {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     <Link href={`/app/workouts/plan?userId=${targetUserId}`} className="btn" style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', color: 'var(--foreground)' }}>
-                        {targetUserId === partner?.id ? `${partner.full_name}'s Plan` : 'My Plan'}
+                        {targetUserId === user?.id ? 'My Plan' : `${targetUser?.full_name || 'Client'}'s Plan`}
                     </Link>
                     <Link href={`/app/workouts/log?userId=${targetUserId}`} className="btn">
                         Log Workout
@@ -90,25 +103,25 @@ function WorkoutsContent() {
             {partner && (
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
                     <button 
-                        onClick={() => router.push(`/app/workouts?userId=${user?.id}${filter ? '&filter=' + filter : ''}`)}
+                        onClick={() => router.push(`/app/workouts?userId=${targetUserId}${filter ? '&filter=' + filter : ''}`)}
                         className="btn" 
                         style={{ 
                             flex: 1, 
-                            background: targetUserId === user?.id ? 'var(--primary)' : 'var(--card-bg)', 
-                            color: targetUserId === user?.id ? 'white' : 'var(--foreground)',
-                            border: targetUserId === user?.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                            background: 'var(--primary)', 
+                            color: 'white',
+                            border: '1px solid var(--primary)' 
                         }}
                     >
-                        Me
+                        {targetUserId === user?.id ? 'Me' : (targetUser?.full_name || 'Client')}
                     </button>
                     <button 
                         onClick={() => router.push(`/app/workouts?userId=${partner.id}${filter ? '&filter=' + filter : ''}`)}
                         className="btn" 
                         style={{ 
                             flex: 1, 
-                            background: targetUserId === partner.id ? 'var(--primary)' : 'var(--card-bg)', 
-                            color: targetUserId === partner.id ? 'white' : 'var(--foreground)',
-                            border: targetUserId === partner.id ? '1px solid var(--primary)' : '1px solid var(--border)' 
+                            background: 'var(--card-bg)', 
+                            color: 'var(--foreground)',
+                            border: '1px solid var(--border)' 
                         }}
                     >
                         {partner.full_name}
