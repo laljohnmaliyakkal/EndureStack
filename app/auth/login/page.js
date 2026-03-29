@@ -25,7 +25,18 @@ export default function Login() {
 
             if (loginError) throw loginError
 
-            router.push('/app/dashboard')
+            // Fetch profile to check role
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('user_id', data.user.id)
+                .single()
+
+            if (profile?.role === 'trainer') {
+                router.push('/app/trainer/users')
+            } else {
+                router.push('/app/dashboard')
+            }
         } catch (err) {
             setError(err.message)
         } finally {

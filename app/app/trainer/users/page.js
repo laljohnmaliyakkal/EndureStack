@@ -21,6 +21,12 @@ export default function TrainerClientsPage() {
     const [assignLoading, setAssignLoading] = useState(false)
     const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' })
 
+    // Pairing State
+    const [pairModalOpen, setPairModalOpen] = useState(false)
+    const [selectedPartnerUser, setSelectedPartnerUser] = useState('')
+    const [pairLoading, setPairLoading] = useState(false)
+    const [currentPartnerProfile, setCurrentPartnerProfile] = useState(null)
+
     useEffect(() => {
         if (user) {
             const fetchClientsAndPlans = async () => {
@@ -211,6 +217,84 @@ export default function TrainerClientsPage() {
         }
     }
 
+    const openPairModal = async (userId) => {
+        setSelectedUser(userId)
+        setSelectedPartnerUser('')
+        setCurrentPartnerProfile(null)
+        setPairModalOpen(true)
+        
+        try {
+            const client = clients.find(c => c.user_id === userId)
+            if (client?.partner_id) {
+                const partnerProfile = clients.find(c => c.user_id === client.partner_id)
+                if (partnerProfile) {
+                    setCurrentPartnerProfile(partnerProfile)
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching partner:', error)
+        }
+    }
+
+    const handleAssignPartner = async () => {
+        if (!selectedUser || !selectedPartnerUser) return
+        setPairLoading(true)
+        try {
+            const { error } = await supabase.rpc('trainer_link_clients', {
+                client_a: selectedUser,
+                client_b: selectedPartnerUser
+            })
+            if (error) throw error
+            
+            // Update local state
+            setClients(prev => prev.map(c => {
+                if (c.user_id === selectedUser) return { ...c, partner_id: selectedPartnerUser }
+                if (c.user_id === selectedPartnerUser) return { ...c, partner_id: selectedUser }
+                return c
+            }))
+            
+            setAlertModal({
+                isOpen: true,
+                title: 'Success',
+                message: 'Clients paired successfully!',
+                onClose: () => setPairModalOpen(false)
+            })
+        } catch (error) {
+            setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to pair clients: ' + error.message })
+        } finally {
+            setPairLoading(false)
+        }
+    }
+
+    const handleUnpairPartner = async () => {
+        if (!selectedUser) return
+        setPairLoading(true)
+        try {
+            const { error } = await supabase.rpc('trainer_unlink_client', {
+                client_a: selectedUser
+            })
+            if (error) throw error
+
+            setClients(prev => prev.map(c => {
+                if (c.user_id === selectedUser || c.partner_id === selectedUser) {
+                    return { ...c, partner_id: null }
+                }
+                return c
+            }))
+
+            setAlertModal({
+                isOpen: true,
+                title: 'Success',
+                message: 'Clients unpaired successfully!',
+                onClose: () => { setPairModalOpen(false); setCurrentPartnerProfile(null) }
+            })
+        } catch (error) {
+            setAlertModal({ isOpen: true, title: 'Error', message: 'Failed to unpair clients: ' + error.message })
+        } finally {
+            setPairLoading(false)
+        }
+    }
+
     return (
         <div>
             <h1 style={{ marginBottom: '1.5rem' }}>My Clients</h1>
@@ -267,6 +351,13 @@ export default function TrainerClientsPage() {
                                 <Link href={`/app/trainer/users/${client.user_id}/schedule`} className="btn" style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)' }}>
                                     Schedule
                                 </Link>
+                                <button
+                                    onClick={() => openPairModal(client.user_id)}
+                                    className="btn"
+                                    style={{ width: '100%', fontSize: '0.9rem', padding: '0.5rem', textAlign: 'center', background: 'var(--secondary-bg)', color: 'var(--foreground)', border: '1px solid var(--border)', gridColumn: '1 / -1' }}
+                                >
+                                    {client.partner_id ? 'Manage Partner' : 'Assign Partner'}
+                                </button>
                             </div>
                         </div>
                     ))}
@@ -331,6 +422,50 @@ export default function TrainerClientsPage() {
                             <option key={p.id} value={p.id}>
                                 {p.name} {p.is_public ? '(Public)' : ''}
                             </option>
+                        ))}
+                    </select>
+                </div>
+            </Modal>
+
+            {/* Pair Clients Modal */}
+            <Modal
+                isOpen={pairModalOpen}
+                onClose={() => setPairModalOpen(false)}
+                title="Manage Workout Partner"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <div>
+                            {currentPartnerProfile && (
+                                <button onClick={handleUnpairPartner} className="btn" style={{ backgroundColor: 'transparent', border: '1px solid var(--error)', color: 'var(--error)' }} disabled={pairLoading}>
+                                    Unassign Partner
+                                </button>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button onClick={() => setPairModalOpen(false)} className="btn" style={{ backgroundColor: 'var(--secondary)' }} disabled={pairLoading}>Cancel</button>
+                            <button onClick={handleAssignPartner} className="btn" disabled={!selectedPartnerUser || pairLoading}>
+                                {pairLoading ? 'Saving...' : (currentPartnerProfile ? 'Update Partner' : 'Assign Partner')}
+                            </button>
+                        </div>
+                    </div>
+                }
+            >
+                <div style={{ marginBottom: '1.5rem' }}>
+                    {currentPartnerProfile && (
+                        <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'rgba(var(--primary-rgb), 0.1)', borderRadius: '6px', border: '1px solid var(--primary)' }}>
+                            <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold' }}>Current Partner:</span>
+                            <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{currentPartnerProfile.full_name}</span>
+                        </div>
+                    )}
+                    <label style={{ display: 'block', marginBottom: '0.5rem' }}>{currentPartnerProfile ? 'Change Partner (Select another client)' : 'Select Client to Pair With'}</label>
+                    <select
+                        className="input"
+                        value={selectedPartnerUser}
+                        onChange={e => setSelectedPartnerUser(e.target.value)}
+                    >
+                        <option value="">Select a client...</option>
+                        {clients.filter(c => c.user_id !== selectedUser && !c.partner_id).map(c => (
+                            <option key={c.user_id} value={c.user_id}>{c.full_name}</option>
                         ))}
                     </select>
                 </div>

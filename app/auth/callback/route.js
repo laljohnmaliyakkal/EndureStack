@@ -40,13 +40,17 @@ export async function GET(request) {
             if (user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('age, height_cm, weight_kg')
+                    .select('age, height_cm, weight_kg, role')
                     .eq('user_id', user.id)
                     .single()
 
                 // If profile is missing basic details, redirect to profile page
                 if (profile && (!profile.age || !profile.height_cm || !profile.weight_kg)) {
                     return NextResponse.redirect(`${origin}/app/profile?first_time=true`)
+                }
+                
+                if (profile?.role === 'trainer' && next === '/app/dashboard') {
+                    return NextResponse.redirect(`${origin}/app/trainer/users`)
                 }
             }
 
